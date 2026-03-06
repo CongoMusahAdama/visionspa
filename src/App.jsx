@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useContext, createContext } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { ShoppingBag, Heart, User, Search, ArrowRight, Instagram, Facebook, Twitter, Shield, Globe, Award, Mail, Phone, MessageCircle, Headset, X, Quote, Plus, Minus, Trash2, CheckCircle, Send, Menu, LayoutGrid, List } from 'lucide-react';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { ShoppingBag, Heart, User, Search, ArrowRight, Instagram, Facebook, Twitter, Shield, Globe, Award, Mail, Phone, MessageCircle, Headset, X, Quote, Plus, Minus, Trash2, CheckCircle, Send, Menu, LayoutGrid, List, LayoutDashboard, Package, Layers, ShoppingCart, BarChart3, Receipt, Settings, LogOut, Edit3, Trash, Download, Filter, Eye, MoreVertical, AlertTriangle, Sparkles, Upload } from 'lucide-react';
 import './App.css';
 import './mobile.css';
+import './Dashboard.css';
 
 // --- CART CONTEXT ---
 const CartContext = createContext(null);
@@ -24,6 +25,8 @@ const CartProvider = ({ children }) => {
       return [...prev, { ...product, qty: 1 }];
     });
     addToast(product.name);
+    // Explicitly open cart when adding to ensure visibility
+    setIsCartOpen(true);
   };
 
   const removeFromCart = (id) => setCartItems(prev => prev.filter(i => i.id !== id));
@@ -41,6 +44,7 @@ const CartProvider = ({ children }) => {
     <CartContext.Provider value={{ cartItems, cartCount, cartTotal, addToCart, removeFromCart, updateQty, clearCart, isCartOpen, setIsCartOpen, toast, setToast }}>
       {children}
       <Toast />
+      <CartDrawer />
     </CartContext.Provider>
   );
 };
@@ -165,14 +169,9 @@ const ProductDetailModal = () => {
   );
 };
 
-// Asset imports (using the paths we set up)
-const heroImg = '/hero1.png';
-import collectionWomen from './assets/images/collection_women.png';
-import productMidnight from './assets/images/product_midnight.png';
-
 // --- DATA ---
 const luxuryProducts = [
-  { id: 1, name: "Midnight Artisan", price: "170.00", badge: "With Pouch", image: "/luxuriesfashion.png" },
+  { id: 1, name: "Midnight Artisan", price: "170.00", badge: "With Pouch", image: "/midnight.png" },
   { id: 2, name: "Teal Horizon Pilot", price: "170.00", badge: "With Pouch", image: "/luxuriesfashion1.png" },
   { id: 3, name: "Executive Charcoal", price: "170.00", badge: "With Pouch", image: "/luxuriesfashion2.png" },
   { id: 4, name: "Elite Azure Frame", price: "170.00", badge: "With Pouch", image: "/luxuriesfashion3.png" },
@@ -220,7 +219,11 @@ const NavCartButton = () => {
   return (
     <button
       className="icon-link nav-cart-btn flex items-center gap-2"
-      onClick={() => setIsCartOpen(true)}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsCartOpen(true);
+      }}
       style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}
     >
       <span style={{ position: 'relative', display: 'inline-flex' }}>
@@ -233,11 +236,62 @@ const NavCartButton = () => {
   );
 };
 
+const SearchOverlay = ({ isOpen, onClose }) => {
+  const [query, setQuery] = useState('');
+  const navigate = useNavigate();
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (query.trim()) {
+      navigate(`/shop?q=${encodeURIComponent(query.trim())}`);
+      onClose();
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="search-overlay">
+      <div className="search-overlay-backdrop" onClick={onClose}></div>
+      <div className="search-overlay-content">
+        <button className="search-overlay-close" onClick={onClose}>
+          <X size={32} strokeWidth={1.5} />
+        </button>
+        <div className="container center-text">
+          <span className="search-overlay-label">Find Your Vision</span>
+          <form onSubmit={handleSearch} className="search-overlay-form">
+            <input
+              type="text"
+              autoFocus
+              placeholder="Searching for high-end eyewear..."
+              className="search-overlay-input serif"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <button type="submit" className="search-overlay-btn">
+              <ArrowRight size={32} />
+            </button>
+          </form>
+          <div className="search-overlay-suggestions">
+            <p>Popular:
+              <strong onClick={() => { setQuery('Elite'); navigate('/shop?q=Elite'); onClose(); }}>Elite</strong>,
+              <strong onClick={() => { setQuery('Midnight'); navigate('/shop?q=Midnight'); onClose(); }}>Midnight</strong>,
+              <strong onClick={() => { setQuery('Classic'); navigate('/shop?q=Classic'); onClose(); }}>Classic</strong>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const location = useLocation();
   const isHome = location.pathname === '/';
+  const isAuthPage = location.pathname === '/auth' || location.pathname.startsWith('/admin');
 
   useEffect(() => {
     const handleScroll = () => {
@@ -251,6 +305,8 @@ const Navbar = () => {
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location]);
+
+  if (isAuthPage) return null;
 
   return (
     <>
@@ -267,9 +323,11 @@ const Navbar = () => {
           </div>
 
           <div className="nav-icons">
-            <Link to="/shop" className="icon-link desktop-only"><Search size={20} strokeWidth={1.2} /></Link>
-            <a href="#" className="icon-link desktop-only"><User size={20} strokeWidth={1.2} /></a>
-            <a href="#" className="icon-link desktop-only"><Heart size={20} strokeWidth={1.2} /></a>
+            <button className="icon-link" onClick={() => setIsSearchOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}>
+              <Search size={20} strokeWidth={1.5} />
+            </button>
+            <a href="#" className="icon-link desktop-only"><User size={20} strokeWidth={1.5} /></a>
+            <a href="#" className="icon-link desktop-only"><Heart size={20} strokeWidth={1.5} /></a>
             <NavCartButton />
             <button className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)}>
               <Menu size={24} strokeWidth={1.5} />
@@ -277,6 +335,9 @@ const Navbar = () => {
           </div>
         </div>
       </header>
+
+      {/* Search Overlay */}
+      <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
 
       {/* Mobile Navigation Drawer */}
       <div className={`mobile-nav-drawer ${isMobileMenuOpen ? 'open' : ''}`}>
@@ -314,7 +375,7 @@ const Hero = () => {
       <div className="hero-bg-accent hero-bg-accent-1"></div>
       <div className="hero-bg-accent hero-bg-accent-2"></div>
 
-      <img src={heroImg} alt="Vision Spa Elite Eyewear" className="hero-image" />
+      <img src="/hero1.png" alt="Vision Spa Elite Eyewear" className="hero-image" />
       <div className="hero-overlay"></div>
 
       <div className="hero-content-wrapper">
@@ -348,7 +409,7 @@ const CollectionCard = ({ title, image, link }) => (
     <img src={image} alt={title} />
     <div className="collection-info">
       <h3 className="collection-title serif">{title}</h3>
-      <a href={link} className="collection-link">Discover More</a>
+      <Link to="/shop" className="collection-link">Discover More</Link>
     </div>
   </div>
 );
@@ -548,75 +609,80 @@ const CartDrawer = () => {
   );
 };
 
-const Footer = () => (
-  <footer className="footer">
-    <div className="container">
-      <div className="footer-grid">
-        <div>
-          <a href="/" className="logo footer-logo"><img src="/logo.jpeg" alt="Vision Spa" className="footer-logo-img" /></a>
-          <p className="footer-desc">Defined by elegance, worn by the elite. Vision Spa brings you the finest selection of luxury fashion glasses.</p>
-          <div className="flex flex-col gap-3" style={{ marginTop: '2rem' }}>
-            <div className="flex items-center gap-3 footer-desc">
-              <Phone size={16} className="text-teal" />
-              <span>+233 544477261</span>
+const Footer = () => {
+  const location = useLocation();
+  if (location.pathname === '/auth' || location.pathname.startsWith('/admin')) return null;
+
+  return (
+    <footer className="footer">
+      <div className="container">
+        <div className="footer-grid">
+          <div>
+            <a href="/" className="logo footer-logo"><img src="/logo.jpeg" alt="Vision Spa" className="footer-logo-img" /></a>
+            <p className="footer-desc">Defined by elegance, worn by the elite. Vision Spa brings you the finest selection of luxury fashion glasses.</p>
+            <div className="flex flex-col gap-3" style={{ marginTop: '2rem' }}>
+              <div className="flex items-center gap-3 footer-desc">
+                <Phone size={16} className="text-teal" />
+                <span>+233 544477261</span>
+              </div>
+              <div className="flex items-center gap-3 footer-desc">
+                <MessageCircle size={16} className="text-teal" />
+                <span>+233 552739280 (WhatsApp)</span>
+              </div>
+              <div className="flex items-center gap-3 footer-desc">
+                <Mail size={16} className="text-teal" />
+                <span style={{ fontSize: '0.85rem' }}>flourenceeshun6352@gmail.com</span>
+              </div>
             </div>
-            <div className="flex items-center gap-3 footer-desc">
-              <MessageCircle size={16} className="text-teal" />
-              <span>+233 552739280 (WhatsApp)</span>
-            </div>
-            <div className="flex items-center gap-3 footer-desc">
-              <Mail size={16} className="text-teal" />
-              <span style={{ fontSize: '0.85rem' }}>flourenceeshun6352@gmail.com</span>
+          </div>
+
+          <div>
+            <h4 className="footer-heading">Collections</h4>
+            <ul className="footer-links">
+              <li><Link to="/shop">Women's Elite</Link></li>
+              <li><Link to="/shop">Men's Standard</Link></li>
+              <li><Link to="/shop">Luxury Fashion</Link></li>
+              <li><Link to="/shop">All Collections</Link></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="footer-heading">Connect With Us</h4>
+            <ul className="footer-links">
+              <li><a href="#" className="flex items-center gap-2"><Instagram size={16} /> @The-Vision-Spa</a></li>
+              <li><a href="#" className="flex items-center gap-2"><Facebook size={16} /> @The-Vision-Spa</a></li>
+              <li><a href="#" className="flex items-center gap-2"><span style={{ fontWeight: 800 }}>T</span> TikTok @The-Vision-Spa</a></li>
+              <li><a href="#" className="flex items-center gap-2"><span style={{ fontWeight: 800 }}>S</span> Snapchat @The-Vision-Spa</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="footer-heading">Newsletter</h4>
+            <p className="footer-desc" style={{ marginBottom: '1rem' }}>Join the elite. Get exclusive access to new drops.</p>
+            <div className="flex">
+              <input
+                type="text"
+                placeholder="YOUR EMAIL"
+                style={{ padding: '0.8rem', background: '#222', border: 'none', color: 'white', width: '100%' }}
+              />
+              <button className="bg-teal" style={{ padding: '0 1rem', color: 'white' }}>
+                <ArrowRight size={20} />
+              </button>
             </div>
           </div>
         </div>
 
-        <div>
-          <h4 className="footer-heading">Collections</h4>
-          <ul className="footer-links">
-            <li><Link to="/shop">Women's Elite</Link></li>
-            <li><Link to="/shop">Men's Standard</Link></li>
-            <li><Link to="/shop">Luxury Fashion</Link></li>
-            <li><Link to="/shop">All Collections</Link></li>
-          </ul>
-        </div>
-
-        <div>
-          <h4 className="footer-heading">Connect With Us</h4>
-          <ul className="footer-links">
-            <li><a href="#" className="flex items-center gap-2"><Instagram size={16} /> @The-Vision-Spa</a></li>
-            <li><a href="#" className="flex items-center gap-2"><Facebook size={16} /> @The-Vision-Spa</a></li>
-            <li><a href="#" className="flex items-center gap-2"><span style={{ fontWeight: 800 }}>T</span> TikTok @The-Vision-Spa</a></li>
-            <li><a href="#" className="flex items-center gap-2"><span style={{ fontWeight: 800 }}>S</span> Snapchat @The-Vision-Spa</a></li>
-          </ul>
-        </div>
-
-        <div>
-          <h4 className="footer-heading">Newsletter</h4>
-          <p className="footer-desc" style={{ marginBottom: '1rem' }}>Join the elite. Get exclusive access to new drops.</p>
-          <div className="flex">
-            <input
-              type="text"
-              placeholder="YOUR EMAIL"
-              style={{ padding: '0.8rem', background: '#222', border: 'none', color: 'white', width: '100%' }}
-            />
-            <button className="bg-teal" style={{ padding: '0 1rem', color: 'white' }}>
-              <ArrowRight size={20} />
-            </button>
+        <div className="footer-bottom">
+          <p>&copy; 2026 Vision Spa. All rights reserved.</p>
+          <div className="flex gap-8">
+            <span>Privacy Policy</span>
+            <span>Terms of Service</span>
           </div>
         </div>
       </div>
-
-      <div className="footer-bottom">
-        <p>&copy; 2026 Vision Spa. All rights reserved.</p>
-        <div className="flex gap-8">
-          <span>Privacy Policy</span>
-          <span>Terms of Service</span>
-        </div>
-      </div>
-    </div>
-  </footer>
-);
+    </footer>
+  );
+};
 
 // --- PAGE COMPONENTS ---
 
@@ -657,13 +723,13 @@ const HomePage = () => {
         <div className="collection-grid">
           <CollectionCard
             title="Women’s Elite"
-            image={collectionWomen}
-            link="#"
+            image="/women_elite.png"
+            link="/shop"
           />
           <CollectionCard
             title="Men’s Standard"
             image="/men.png"
-            link="#"
+            link="/shop"
           />
         </div>
       </section>
@@ -954,7 +1020,7 @@ const AboutPage = () => {
   );
 };
 
-const CollectionsPage = ({ collectionWomen }) => {
+const CollectionsPage = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
     const observer = new IntersectionObserver((entries) => {
@@ -1026,9 +1092,17 @@ const CollectionsPage = ({ collectionWomen }) => {
 const ShopPage = () => {
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState('Recommended');
   const [maxPrice, setMaxPrice] = useState(300);
+  const [showFilters, setShowFilters] = useState(false);
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q) {
+      setSearchQuery(q);
+    }
+  }, [searchParams]);
 
   const filteredProducts = allProducts
     .filter(product => {
@@ -1172,7 +1246,7 @@ const ShopPage = () => {
               {/* Mobile Only Header Actions */}
               <div className="mobile-shop-header mobile-only">
                 <div className="mobile-page-title-area">
-                  <h1 className="mobile-shop-title">Our Menu</h1>
+                  <h1 className="mobile-shop-title">Shop Now</h1>
                   <p className="mobile-shop-subtitle">Vision Spa — All items available online</p>
                 </div>
 
@@ -1305,65 +1379,938 @@ const ShopPage = () => {
 
 const SupportBot = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const location = useLocation();
+  if (location.pathname === '/auth' || location.pathname.startsWith('/admin')) return null;
+
 
   return (
     <div className={`support-bot-container ${isOpen ? 'open' : ''}`}>
       <div className="support-window">
-        <div className="support-header">
-          <div className="flex items-center gap-3">
-            <div className="support-avatar">
-              <Headset size={20} />
+        <div className="support-header-premium">
+          <div className="flex items-center gap-4">
+            <div className="support-avatar-pulse">
+              <Headset size={22} color="white" />
+              <div className="online-indicator"></div>
             </div>
             <div>
-              <h4 className="serif" style={{ fontSize: '1rem', margin: 0 }}>Vision Support</h4>
-              <p style={{ fontSize: '0.7rem', opacity: 0.8, margin: 0 }}>Online | Active Now</p>
+              <h4 className="serif" style={{ fontSize: '1.1rem', margin: 0, letterSpacing: '0.02em' }}>Vision Support</h4>
+              <p className="support-status">Online | Average response 1m</p>
             </div>
           </div>
-          <button onClick={() => setIsOpen(false)} className="close-support">
-            <X size={18} />
+          <button onClick={() => setIsOpen(false)} className="close-support-btn">
+            <X size={20} strokeWidth={2} />
           </button>
         </div>
-        <div className="support-body">
-          <p style={{ fontSize: '0.9rem', marginBottom: '1rem' }}>Hello! How can we help you define your vision today?</p>
-          <div className="support-contact-list">
-            <div className="support-contact-item">
-              <Phone size={14} className="text-teal" />
-              <div>
-                <span>Call Us</span>
-                <strong>+233 544477261</strong>
+
+        <div className="support-body-premium">
+          <div className="support-msg-bubble">
+            <p>Hello! Welcome to Vision Spa Luxury. How can we help you define your vision today?</p>
+          </div>
+
+          <div className="support-action-grid">
+            <a href="tel:+233544477261" className="support-action-card">
+              <div className="action-icon-circle tel-bg">
+                <Phone size={18} />
               </div>
-            </div>
-            <div className="support-contact-item">
-              <MessageCircle size={14} className="text-teal" />
-              <div>
-                <span>WhatsApp</span>
-                <strong>+233 552739280</strong>
+              <div className="action-details">
+                <span>Call Us Direct</span>
+                <strong>+233 544 477 261</strong>
               </div>
-            </div>
+              <ArrowRight size={14} className="action-arrow" />
+            </a>
+
+            <a href="https://wa.me/233552739280" target="_blank" rel="noreferrer" className="support-action-card">
+              <div className="action-icon-circle wa-bg">
+                <MessageCircle size={18} />
+              </div>
+              <div className="action-details">
+                <span>WhatsApp Live</span>
+                <strong>+233 552 739 280</strong>
+              </div>
+              <ArrowRight size={14} className="action-arrow" />
+            </a>
           </div>
         </div>
-        <div className="support-footer">
-          <a href="https://wa.me/233552739280" target="_blank" rel="noreferrer" className="cta-button" style={{ width: '100%', textAlign: 'center', fontSize: '0.8rem', padding: '0.6rem', display: 'block' }}>
-            Chat on WhatsApp
+
+        <div className="support-footer-premium">
+          <a href="https://wa.me/233552739280" target="_blank" rel="noreferrer" className="whatsapp-full-btn">
+            <MessageCircle size={18} />
+            <span>Start WhatsApp Chat</span>
           </a>
         </div>
       </div>
-      <button className="support-trigger" onClick={() => setIsOpen(!isOpen)}>
-        {isOpen ? <X size={24} /> : <MessageCircle size={24} />}
+
+      <button className="support-trigger-button" onClick={() => setIsOpen(!isOpen)}>
+        {isOpen ? <X size={28} /> : <MessageCircle size={28} />}
         {!isOpen && (
-          <>
-            <span className="support-badge"></span>
-            <span className="support-tooltip">Contact Support</span>
-          </>
+          <div className="trigger-label">
+            <span className="pulse-dot"></span>
+            Chat with us
+          </div>
         )}
       </button>
     </div>
   );
 };
 
-// --- MAIN APP ---
+// --- AUTH PAGE ---
+
+const AuthPage = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const navigate = useNavigate();
+
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    const timer = setTimeout(() => setIsLoaded(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    // Simulate admin login
+    console.log("Admin log-in attempt:", email);
+    navigate('/admin');
+  };
+
+  return (
+    <div className="auth-page">
+      <div className="auth-background">
+        <img src="/hero1.png" alt="Admin Background" />
+        <div className="auth-overlay"></div>
+      </div>
+
+      {/* Decorative Glows */}
+      <div className="auth-glow auth-glow-1"></div>
+      <div className="auth-glow auth-glow-2"></div>
+
+      <div className="auth-container">
+        <div className={`auth-card glass reveal ${isLoaded ? 'active' : ''}`}>
+          <div className="auth-card-header">
+            <Link to="/" className="auth-logo-link">
+              <img src="/logo.jpeg" alt="Vision Spa" className="auth-logo" />
+            </Link>
+            <h2 className="serif">Admin Portal</h2>
+            <p className="auth-subtitle">Restricted Access • Secure Login</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="auth-form">
+            <div className="auth-input-wrapper">
+              <label>Email Address</label>
+              <div className="auth-input-group">
+                <Mail className="input-icon" size={18} />
+                <input
+                  type="email"
+                  required
+                  placeholder="admin@visionspa.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="auth-input-wrapper">
+              <label>Password</label>
+              <div className="auth-input-group">
+                <Shield className="input-icon" size={18} />
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="auth-extra">
+              <label className="remember-me">
+                <input type="checkbox" />
+                <span className="checkbox-custom"></span>
+                <span>Keep me signed in</span>
+              </label>
+            </div>
+
+            <button type="submit" className="auth-submit-btn">
+              <span>Enter Dashboard</span>
+              <ArrowRight size={18} />
+            </button>
+          </form>
+
+          <footer className="auth-card-footer">
+            <p className="auth-footer-text">
+              Secure 256-bit encrypted portal. <br />
+              Authorized Vision Spa Personnel Only.
+            </p>
+          </footer>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- ADMIN DASHBOARD COMPONENTS ---
+
+const AdminDashboard = ({ products, categories, orders, addProduct, deleteProduct, addOrder, setCategories }) => {
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const location = useLocation();
+
+  return (
+    <div className={`dashboard-layout ${isMinimized ? 'minimized' : ''}`}>
+      {/* Sidebar */}
+      <aside className={`admin-sidebar ${isMobileOpen ? 'mobile-open' : ''} ${isMinimized ? 'minimized' : ''}`}>
+        <div className="sidebar-header">
+          {!isMinimized && (
+            <div className="flex items-center gap-4">
+              <img src="/logo.jpeg" alt="Vision Spa" className="admin-logo" />
+              <h2 className="serif" style={{ fontSize: '1.2rem', color: 'white' }}>Admin</h2>
+            </div>
+          )}
+          <button className="sidebar-minimize-toggle" onClick={() => setIsMinimized(!isMinimized)}>
+            {isMinimized ? <LayoutGrid size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
+
+        <nav className="sidebar-nav">
+          <Link to="/admin" className={`sidebar-link ${location.pathname === '/admin' ? 'active' : ''}`}>
+            <LayoutDashboard size={18} />
+            <span className="sidebar-text">Dashboard</span>
+          </Link>
+          <Link to="/admin/products" className={`sidebar-link ${location.pathname.startsWith('/admin/products') ? 'active' : ''}`}>
+            <Package size={18} />
+            <span className="sidebar-text">Products</span>
+          </Link>
+          <Link to="/admin/categories" className={`sidebar-link ${location.pathname.startsWith('/admin/categories') ? 'active' : ''}`}>
+            <Layers size={18} />
+            <span className="sidebar-text">Categories</span>
+          </Link>
+          <Link to="/admin/orders" className={`sidebar-link ${location.pathname.startsWith('/admin/orders') ? 'active' : ''}`}>
+            <ShoppingCart size={18} />
+            <span className="sidebar-text">Orders</span>
+          </Link>
+          <Link to="/admin/inventory" className={`sidebar-link ${location.pathname.startsWith('/admin/inventory') ? 'active' : ''}`}>
+            <BarChart3 size={18} />
+            <span className="sidebar-text">Inventory</span>
+          </Link>
+          <Link to="/admin/receipts" className={`sidebar-link ${location.pathname.startsWith('/admin/receipts') ? 'active' : ''}`}>
+            <Receipt size={18} />
+            <span className="sidebar-text">Receipts</span>
+          </Link>
+        </nav>
+
+        <div className="sidebar-footer">
+          <Link to="/auth" className="logout-btn">
+            <LogOut size={18} />
+            <span className="sidebar-text">Sign Out</span>
+          </Link>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="admin-main">
+        {/* Mobile Nav Toggle */}
+        <div className="admin-mobile-nav">
+          <Menu size={24} onClick={() => setIsMobileOpen(!isMobileOpen)} />
+          <h2 className="serif">Vision Admin</h2>
+          <div className="admin-user-avatar">
+            <User size={20} />
+          </div>
+        </div>
+
+        <Routes>
+          <Route path="/" element={<DashboardOverview products={products} orders={orders} />} />
+          <Route path="/products" element={<AdminProducts products={products} categories={categories} deleteProduct={deleteProduct} addProduct={addProduct} />} />
+          <Route path="/orders" element={<AdminOrders orders={orders} addOrder={addOrder} products={products} />} />
+          <Route path="/receipts" element={<AdminReceipts orders={orders} />} />
+          <Route path="/categories" element={<AdminCategories categories={categories} setCategories={setCategories} />} />
+          <Route path="/inventory" element={<AdminInventory products={products} />} />
+          {/* Default to Overview */}
+          <Route path="*" element={<DashboardOverview products={products} orders={orders} />} />
+        </Routes>
+      </main>
+
+      {/* Admin Bottom Navigation (Mobile) */}
+      <nav className="admin-bottom-nav">
+        <Link to="/admin" className={`bottom-nav-link ${location.pathname === '/admin' ? 'active' : ''}`}>
+          <LayoutDashboard size={20} />
+          <span>Home</span>
+        </Link>
+        <Link to="/admin/products" className={`bottom-nav-link ${location.pathname.startsWith('/admin/products') ? 'active' : ''}`}>
+          <Package size={20} />
+          <span>Stock</span>
+        </Link>
+        <Link to="/admin/orders" className={`bottom-nav-link ${location.pathname.startsWith('/admin/orders') ? 'active' : ''}`}>
+          <ShoppingCart size={20} />
+          <span>Sales</span>
+        </Link>
+        <Link to="/admin/inventory" className={`bottom-nav-link ${location.pathname.startsWith('/admin/inventory') ? 'active' : ''}`}>
+          <BarChart3 size={20} />
+          <span>Health</span>
+        </Link>
+        <Link to="/auth" className="bottom-nav-link logout-danger">
+          <LogOut size={20} />
+          <span>Exit</span>
+        </Link>
+      </nav>
+    </div>
+  );
+};
+
+const DashboardOverview = ({ products, orders }) => {
+  const navigate = useNavigate();
+  const pendingCount = orders.filter(o => o.status === 'Pending' || o.status === 'Processing').length;
+  const lowStock = products.filter(p => p.stock <= 3).length;
+  const totalSales = orders.reduce((sum, o) => sum + (o.total || 0), 0);
+
+  return (
+    <div className="dashboard-view fade-in">
+      <div className="welcome-banner reveal active">
+        <div className="welcome-content">
+          <h2 className="serif">Welcome Back, Admin!</h2>
+          <p>The vision of luxury continues. Here is a summary of your performance today.</p>
+        </div>
+        <div className="welcome-decor">
+          <Sparkles size={60} className="sparkle-icon" />
+        </div>
+      </div>
+
+      <header className="admin-header">
+        <div className="page-title">
+          <h1 className="serif">Performance Overview</h1>
+          <p>Vision Spa Luxury • {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+        </div>
+        <div className="header-actions">
+          <button onClick={() => navigate('/admin/products')} className="cta-button-premium shadowed" style={{ padding: '0.8rem 1.75rem', fontSize: '0.8rem', borderRadius: '14px', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <Plus size={18} /> Add New Product
+          </button>
+        </div>
+      </header>
+
+      {/* Interactive Stats Cards */}
+      <div className="stats-grid">
+        <div
+          className="stat-card blue interactive"
+          onClick={() => navigate('/admin/products')}
+        >
+          <div className="stat-icon"><Package size={24} /></div>
+          <div className="stat-info">
+            <h3>Total Products</h3>
+            <span className="stat-number">{products.length}</span>
+            <span className="stat-link">View catalog →</span>
+          </div>
+        </div>
+
+        <div
+          className="stat-card green interactive"
+          onClick={() => navigate('/admin/orders')}
+        >
+          <div className="stat-icon"><ShoppingCart size={24} /></div>
+          <div className="stat-info">
+            <h3>Total Orders</h3>
+            <span className="stat-number">{orders.length}</span>
+            <span className="stat-link">Manage sales →</span>
+          </div>
+        </div>
+
+        <div
+          className="stat-card yellow interactive"
+          onClick={() => navigate('/admin/receipts')}
+        >
+          <div className="stat-icon"><Award size={24} /></div>
+          <div className="stat-info">
+            <h3>Total Sales</h3>
+            <span className="stat-number">GH₵{totalSales.toLocaleString()}</span>
+            <span className="stat-link">Receipts →</span>
+          </div>
+        </div>
+
+        <div
+          className="stat-card orange interactive"
+          onClick={() => navigate('/admin/orders')}
+        >
+          <div className="stat-icon"><AlertTriangle size={24} /></div>
+          <div className="stat-info">
+            <h3>Pending</h3>
+            <span className="stat-number">{pendingCount}</span>
+            <span className="stat-link">Take action →</span>
+          </div>
+        </div>
+
+        <div
+          className="stat-card red interactive"
+          onClick={() => navigate('/admin/inventory')}
+        >
+          <div className="stat-icon"><BarChart3 size={24} /></div>
+          <div className="stat-info">
+            <h3>Low Stock</h3>
+            <span className="stat-number">{lowStock}</span>
+            <span className="stat-link">Check health →</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="dashboard-grid">
+        <div className="admin-card">
+          <div className="card-header">
+            <h2>Recent Orders</h2>
+            <Link to="/admin/orders" style={{ fontSize: '0.8rem', color: '#008080', fontWeight: 700 }}>View All</Link>
+          </div>
+          <div className="admin-table-container">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Customer</th>
+                  <th>Total</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.slice(0, 5).map((order) => (
+                  <tr key={order.id}>
+                    <td data-label="Order ID" style={{ fontWeight: 700 }}>#{order.id}</td>
+                    <td data-label="Customer">{order.customer}</td>
+                    <td data-label="Total" style={{ fontWeight: 600 }}>GH₵{order.total}</td>
+                    <td data-label="Status"><span className={`badge badge-${order.status.toLowerCase()}`}>{order.status}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="admin-card">
+          <div className="card-header">
+            <h2>Inventory Check</h2>
+          </div>
+          <div className="inventory-alerts-list" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {products.filter(p => p.stock <= 5).map((prod, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem', background: prod.stock <= 2 ? '#fff5f5' : '#fffbeb', borderRadius: '16px', border: `1px solid ${prod.stock <= 2 ? '#fee2e2' : '#fef3c7'}` }}>
+                <div>
+                  <h4 style={{ fontSize: '0.9rem', marginBottom: '0.25rem' }}>{prod.name}</h4>
+                  <span style={{ fontSize: '0.75rem', color: prod.stock <= 2 ? '#991b1b' : '#92400e', fontWeight: 800 }}>{prod.stock} items left</span>
+                </div>
+                <button style={{ color: prod.stock <= 2 ? '#991b1b' : '#92400e' }}><Package size={18} /></button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AdminProducts = ({ products, categories, deleteProduct, addProduct }) => {
+  const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    if (showModal) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = 'auto';
+    return () => { document.body.style.overflow = 'auto'; };
+  }, [showModal]);
+  const [newProd, setNewProd] = useState({
+    name: '',
+    price: '',
+    stock: '',
+    category: 'Luxury',
+    description: '',
+    images: []
+  });
+
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    const fileUrls = files.map(file => URL.createObjectURL(file));
+    setNewProd({ ...newProd, images: [...newProd.images, ...fileUrls] });
+  };
+
+  const removeImage = (index) => {
+    const updatedImages = newProd.images.filter((_, i) => i !== index);
+    setNewProd({ ...newProd, images: updatedImages });
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    addProduct({
+      ...newProd,
+      price: parseFloat(newProd.price),
+      stock: parseInt(newProd.stock),
+      sizes: ['M', 'L'],
+      image: newProd.images[0] || '/midnight.png'
+    });
+    setShowModal(false);
+    setNewProd({ name: '', price: '', stock: '', category: 'Luxury', description: '', images: [] });
+  };
+
+  return (
+    <div className="dashboard-view fade-in">
+      <header className="admin-header">
+        <div className="page-title">
+          <h1 className="serif">Product Library</h1>
+          <p>Displaying all {products.length} products</p>
+        </div>
+        <div className="header-actions">
+          <button onClick={() => setShowModal(true)} className="cta-button-premium" style={{ padding: '0.8rem 1.5rem', fontSize: '0.75rem', borderRadius: '12px' }}>
+            <Plus size={16} /> Add Entry
+          </button>
+        </div>
+      </header>
+
+      {showModal && (
+        <div className="admin-modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="admin-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-pull-handle"></div>
+            <div className="modal-header-premium">
+              <div>
+                <h2 className="serif" style={{ fontSize: '1.6rem', margin: 0, letterSpacing: '0.01em' }}>Add New Product</h2>
+                <p style={{ margin: '0.35rem 0 0', opacity: 0.85, fontSize: '0.85rem' }}>Define the features and essence of your next luxury item.</p>
+              </div>
+              <button onClick={() => setShowModal(false)} className="sidebar-minimize-toggle">
+                <X size={20} strokeWidth={2} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="admin-modal-form">
+              <div className="modal-content-scroll">
+                <div className="form-grid-2">
+                  {/* Left Column: Logistics */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <div className="form-group-premium">
+                      <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.9rem', fontWeight: 700, color: '#334155' }}>Product Identity</label>
+                      <input type="text" required placeholder="name" value={newProd.name} onChange={e => setNewProd({ ...newProd, name: e.target.value })} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '1rem' }} />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.9rem', fontWeight: 700, color: '#334155' }}>Price (GH₵)</label>
+                        <input type="number" required placeholder="0.00" value={newProd.price} onChange={e => setNewProd({ ...newProd, price: e.target.value })} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '1rem' }} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.9rem', fontWeight: 700, color: '#334155' }}>Initial Stock</label>
+                        <input type="number" required placeholder="Units" value={newProd.stock} onChange={e => setNewProd({ ...newProd, stock: e.target.value })} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '1rem' }} />
+                      </div>
+                    </div>
+                    <div className="form-group-premium">
+                      <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.8rem', fontWeight: 700, color: '#334155' }}>Collection Category</label>
+                      <select value={newProd.category} onChange={e => setNewProd({ ...newProd, category: e.target.value })} style={{ width: '100%', padding: '1.1rem', borderRadius: '16px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '1rem' }}>
+                        {categories.map((cat, idx) => (
+                          <option key={idx} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group-premium">
+                      <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.8rem', fontWeight: 700, color: '#334155' }}>Product Soul (Description)</label>
+                      <textarea rows="5" placeholder="Narrate the story..." value={newProd.description} onChange={e => setNewProd({ ...newProd, description: e.target.value })} style={{ width: '100%', padding: '1.1rem', borderRadius: '16px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '1rem', resize: 'none' }}></textarea>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Media */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <div className="form-group-premium" style={{ marginBottom: '1rem' }}>
+                      <label style={{ display: 'block', marginBottom: '0.8rem', fontSize: '0.9rem', fontWeight: 700, color: '#313e50' }}>Catalogue Imagery</label>
+                      <div className="media-upload-area" onClick={() => document.getElementById('image-upload').click()}>
+                        <Upload size={32} color="#94a3b8" style={{ marginBottom: '1rem' }} />
+                        <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Click to import high-res media</p>
+                        <input id="image-upload" type="file" multiple hidden onChange={handleImageChange} />
+                      </div>
+                    </div>
+
+                    <div className="admin-images-grid">
+                      {newProd.images.map((img, i) => (
+                        <div key={i} style={{ position: 'relative', height: '80px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                          <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <button type="button" onClick={() => removeImage(i)} style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(239, 68, 68, 0.9)', color: 'white', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none' }}>
+                            <X size={10} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{ marginTop: 'auto', padding: '1.25rem', background: '#f0fdf4', borderRadius: '20px', border: '1px solid #dcfce7' }}>
+                      <div style={{ display: 'flex', gap: '1rem' }}>
+                        <Shield size={20} color="#166534" />
+                        <p style={{ margin: 0, fontSize: '0.8rem', color: '#166534', lineHeight: 1.5 }}>
+                          Images are reviewed for high-end fidelity.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer-premium">
+                <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '1.1rem', borderRadius: '16px', fontSize: '1rem', fontWeight: 600, background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                  <X size={18} /> Close Window
+                </button>
+                <button type="submit" className="cta-button-premium shadowed" style={{ flex: 2, padding: '1.1rem', borderRadius: '16px', fontSize: '1rem', fontWeight: 800, background: 'var(--admin-sidebar-bg)', color: 'white' }}>
+                  Finalize & Publish Product
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <div className="admin-card" style={{ padding: '0', overflow: 'hidden' }}>
+        <div className="admin-table-container">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th>Status</th>
+                <th style={{ textAlign: 'center' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {products.map((prod) => (
+                <tr key={prod.id}>
+                  <td data-label="Product">
+                    <div className="flex items-center">
+                      <img src={prod.image} className="table-product-img" alt="" style={{ width: '40px', height: '40px', borderRadius: '8px', marginRight: '1rem' }} />
+                      <div style={{ fontWeight: 700 }}>{prod.name}</div>
+                    </div>
+                  </td>
+                  <td data-label="Category">{prod.category}</td>
+                  <td data-label="Price" style={{ fontWeight: 600 }}>GH₵{prod.price}</td>
+                  <td data-label="Stock" style={{ fontWeight: 700, color: prod.stock <= 3 ? '#ef4444' : 'inherit' }}>{prod.stock}</td>
+                  <td data-label="Status"><span className="badge badge-paid">Active</span></td>
+                  <td data-label="Actions">
+                    <div className="flex justify-center gap-2">
+                      <button style={{ padding: '0.4rem', borderRadius: '6px', background: '#f1f5f9' }}><Edit3 size={14} /></button>
+                      <button onClick={() => deleteProduct(prod.id)} style={{ padding: '0.4rem', borderRadius: '6px', background: '#fee2e2', color: '#ef4444' }}><Trash size={14} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div >
+  );
+};
+
+const AdminOrders = ({ orders, addOrder, products }) => {
+  const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    if (showModal) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = 'auto';
+    return () => { document.body.style.overflow = 'auto'; };
+  }, [showModal]);
+  const [newOrder, setNewOrder] = useState({ customer: '', phone: '', location: '', productName: products[0]?.name || '', qty: 1, payment: 'Unpaid' });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const prod = products.find(p => p.name === newOrder.productName) || products[0];
+    if (!prod) return; // Prevent crash if no products exist
+    addOrder({
+      customer: newOrder.customer,
+      phone: newOrder.phone,
+      location: newOrder.location,
+      items: [{ name: newOrder.productName, qty: parseInt(newOrder.qty) }],
+      total: prod.price * newOrder.qty,
+      payment: newOrder.payment,
+      status: 'Processing'
+    });
+    setShowModal(false);
+    setNewOrder({ customer: '', phone: '', location: '', productName: products[0]?.name || '', qty: 1, payment: 'Unpaid' });
+  };
+
+  return (
+    <div className="dashboard-view fade-in">
+      <header className="admin-header">
+        <div className="page-title">
+          <h1 className="serif">Orders Book</h1>
+          <p>Manual WhatsApp Sales Entry</p>
+        </div>
+        <div className="header-actions">
+          <button onClick={() => setShowModal(true)} className="cta-button-premium" style={{ padding: '0.8rem 1.5rem', fontSize: '0.75rem', borderRadius: '12px' }}>
+            <Plus size={16} /> Record Sale
+          </button>
+        </div>
+      </header>
+
+      {showModal && (
+        <div className="admin-modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="admin-modal-card modal-narrow" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-pull-handle"></div>
+            <div className="modal-header-premium">
+              <div>
+                <h2 className="serif" style={{ fontSize: '1.4rem', margin: 0, letterSpacing: '0.01em' }}>Record New Sale</h2>
+                <p style={{ margin: '0.25rem 0 0', opacity: 0.85, fontSize: '0.8rem' }}>Create a manual order for offline or WhatsApp sales.</p>
+              </div>
+              <button onClick={() => setShowModal(false)} className="sidebar-minimize-toggle">
+                <X size={18} strokeWidth={2} />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="admin-modal-form">
+              <div className="modal-content-scroll" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div className="form-group">
+                  <label>Customer Name</label>
+                  <input type="text" required value={newOrder.customer} onChange={e => setNewOrder({ ...newOrder, customer: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label>WhatsApp / Phone</label>
+                  <input type="text" value={newOrder.phone} onChange={e => setNewOrder({ ...newOrder, phone: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label>Shipping Location</label>
+                  <input type="text" placeholder="e.g. Accra, Osu" value={newOrder.location} onChange={e => setNewOrder({ ...newOrder, location: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label>Select Product</label>
+                  <select value={newOrder.productName} onChange={e => setNewOrder({ ...newOrder, productName: e.target.value })}>
+                    {products.length > 0 ? (
+                      products.map(p => <option key={p.id} value={p.name}>{p.name}</option>)
+                    ) : (
+                      <option disabled>No products available</option>
+                    )}
+                  </select>
+                </div>
+                <div className="form-grid-2" style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.25rem' }}>
+                  <div className="form-group">
+                    <label>Quantity</label>
+                    <input type="number" min="1" value={newOrder.qty} onChange={e => setNewOrder({ ...newOrder, qty: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label>Payment State</label>
+                    <select value={newOrder.payment} onChange={e => setNewOrder({ ...newOrder, payment: e.target.value })}>
+                      <option>Unpaid</option>
+                      <option>Paid</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer-premium">
+                <button type="button" onClick={() => setShowModal(false)} className="btn-cancel-premium">
+                  <X size={16} /> Close
+                </button>
+                <button type="submit" className="cta-button-premium shadowed" style={{ flex: 2, padding: '1rem', borderRadius: '14px' }}>
+                  Record Sale
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <div className="admin-card" style={{ padding: '0' }}>
+        <div className="admin-table-container">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Customer</th>
+                <th>Location</th>
+                <th>Price</th>
+                <th>Payment</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map((order) => (
+                <tr key={order.id}>
+                  <td data-label="Order ID" style={{ fontWeight: 700, color: '#008080' }}>#{order.id}</td>
+                  <td data-label="Customer">
+                    <div style={{ fontWeight: 600 }}>{order.customer}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{order.phone}</div>
+                  </td>
+                  <td data-label="Location" style={{ fontSize: '0.85rem' }}>{order.location || 'N/A'}</td>
+                  <td data-label="Price" style={{ fontWeight: 700 }}>GH₵{order.total}</td>
+                  <td data-label="Payment"><span className={`badge ${order.payment === 'Paid' ? 'badge-paid' : 'badge-unpaid'}`}>{order.payment}</span></td>
+                  <td data-label="Status"><span className={`badge badge-${order.status.toLowerCase()}`}>{order.status}</span></td>
+                  <td data-label="Actions" style={{ textAlign: 'center' }}>
+                    <button style={{ padding: '0.5rem', borderRadius: '8px', background: '#f8fafc' }} title="Generate Receipt"><Receipt size={16} /></button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AdminReceipts = ({ orders }) => {
+  return (
+    <div className="dashboard-view fade-in">
+      <header className="admin-header">
+        <div className="page-title">
+          <h1 className="serif">Sales Receipts</h1>
+          <p>Generate and manage transactional records</p>
+        </div>
+      </header>
+
+      <div className="admin-card" style={{ padding: '0' }}>
+        <div className="admin-table-container">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Receipt #</th>
+                <th>Customer</th>
+                <th>Product</th>
+                <th>Qty</th>
+                <th>Total</th>
+                <th>Payment</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map(order => (
+                <tr key={order.id}>
+                  <td data-label="Receipt #" style={{ fontWeight: 700 }}>RC-{order.id.split('-')[1]}</td>
+                  <td data-label="Customer">{order.customer}</td>
+                  <td data-label="Product">{order.items[0]?.name || 'N/A'}</td>
+                  <td data-label="Qty">{order.items[0]?.qty || '1'}</td>
+                  <td data-label="Total">GH₵{order.total}</td>
+                  <td data-label="Payment">
+                    <span className={`badge ${order.payment === 'Paid' ? 'badge-success' : 'badge-warning'}`} style={{
+                      padding: '0.4rem 0.8rem',
+                      borderRadius: '12px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      background: order.payment === 'Paid' ? '#f0fdf4' : '#fffbeb',
+                      color: order.payment === 'Paid' ? '#16a34a' : '#d97706'
+                    }}>
+                      {order.payment}
+                    </span>
+                  </td>
+                  <td data-label="Date">{order.date}</td>
+                  <td data-label="Actions">
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button className="icon-btn" style={{ padding: '0.5rem', background: '#f1f5f9', borderRadius: '8px' }} title="Download PDF"><Download size={16} /></button>
+                      <button className="icon-btn" style={{ padding: '0.5rem', background: '#f1f5f9', borderRadius: '8px' }} title="View Details"><Eye size={16} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+const AdminCategories = ({ categories, setCategories }) => {
+  const [newCat, setNewCat] = useState('');
+
+  const add = (e) => {
+    e.preventDefault();
+    if (newCat && !categories.includes(newCat)) setCategories([...categories, newCat]);
+    setNewCat('');
+  };
+
+  return (
+    <div className="dashboard-view fade-in">
+      <header className="admin-header">
+        <div className="page-title">
+          <h1 className="serif">Category Manager</h1>
+          <p>Organize your collections and catalog groupings</p>
+        </div>
+      </header>
+
+      <div className="dashboard-grid">
+        <div className="admin-card">
+          <form onSubmit={add} style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+            <input type="text" placeholder="New Category Name" value={newCat} onChange={e => setNewCat(e.target.value)} style={{ flex: 1, padding: '0.8rem 1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }} />
+            <button type="submit" className="cta-button-premium" style={{ borderRadius: '12px' }}><Plus size={20} /></button>
+          </form>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {categories.map((cat, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '1.25rem 1.5rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                <span style={{ fontWeight: 600 }}>{cat}</span>
+                <button onClick={() => setCategories(categories.filter(c => c !== cat))} style={{ color: '#ef4444' }}><Trash size={16} /></button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AdminInventory = ({ products }) => {
+  return (
+    <div className="dashboard-view fade-in">
+      <header className="admin-header">
+        <div className="page-title">
+          <h1 className="serif">Inventory Health</h1>
+          <p>Real-time stock tracking and replenishment alerts</p>
+        </div>
+      </header>
+
+      <div className="admin-card" style={{ padding: '0' }}>
+        <div className="admin-table-container">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Available Stock</th>
+                <th>Safety Level</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {products.map(p => (
+                <tr key={p.id}>
+                  <td data-label="Product"><div style={{ fontWeight: 700 }}>{p.name}</div></td>
+                  <td data-label="Available Stock">{p.stock} units</td>
+                  <td data-label="Safety Level">
+                    <div style={{ width: '100%', maxWidth: '150px', height: '10px', background: '#f1f5f9', borderRadius: '5px', overflow: 'hidden', marginLeft: 'auto' }}>
+                      <div style={{ width: `${Math.min(100, (p.stock / 20) * 100)}%`, height: '100%', background: p.stock <= 3 ? '#ef4444' : '#008080' }}></div>
+                    </div>
+                  </td>
+                  <td data-label="Status">
+                    {p.stock <= 3 ? <span className="badge badge-unpaid">Low Stock</span> : <span className="badge badge-paid">Healthy</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 const App = () => {
+  // --- ADMIN STATE ---
+  const [products, setProducts] = useState([
+    { id: 1, name: 'Midnight Artisan', category: 'Luxury', price: 170, stock: 15, sizes: ['M', 'L'], image: '/midnight.png' },
+    { id: 2, name: 'Elite Onyx', category: 'Luxury', price: 210, stock: 2, sizes: ['S', 'M', 'L'], image: '/hero1.png' },
+    { id: 3, name: 'Teal Horizon', category: 'Modern', price: 150, stock: 1, sizes: ['M'], image: '/women_elite.png' },
+  ]);
+
+  const [categories, setCategories] = useState(['Luxury', 'Modern', 'Elite', 'Casual']);
+
+  const [orders, setOrders] = useState([
+    { id: 'VS-101', customer: 'Florence Eshun', phone: '+233 55 273 9280', location: 'Accra, GH', items: [{ name: 'Midnight Artisan', qty: 1, size: 'M' }], total: 170, payment: 'Paid', status: 'Processing', date: 'Oct 24, 2024' }
+  ]);
+
+  const addProduct = (newProduct) => setProducts([...products, { ...newProduct, id: Date.now() }]);
+  const updateProduct = (id, updated) => setProducts(products.map(p => p.id === id ? updated : p));
+  const deleteProduct = (id) => setProducts(products.filter(p => p.id !== id));
+
+  const addOrder = (newOrder) => {
+    const orderId = `VS-${Math.floor(Math.random() * 9000 + 1000)}`;
+    setOrders([{ ...newOrder, id: orderId, date: new Date().toLocaleDateString() }, ...orders]);
+    // Reduce stock
+    newOrder.items.forEach(item => {
+      setProducts(prev => prev.map(p => p.name === item.name ? { ...p, stock: Math.max(0, p.stock - item.qty) } : p));
+    });
+  };
+
   return (
     <CartProvider>
       <ModalProvider>
@@ -1375,6 +2322,8 @@ const App = () => {
               <Route path="/shop" element={<ShopPage />} />
               <Route path="/collections" element={<CollectionsPage />} />
               <Route path="/about" element={<AboutPage />} />
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/admin/*" element={<AdminDashboard products={products} categories={categories} orders={orders} addProduct={addProduct} deleteProduct={deleteProduct} addOrder={addOrder} setCategories={setCategories} />} />
             </Routes>
             <Footer />
             <SupportBot />
