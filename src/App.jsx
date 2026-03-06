@@ -1646,6 +1646,10 @@ const AdminDashboard = ({ products, categories, orders, addProduct, deleteProduc
           <ShoppingCart size={20} />
           <span>Sales</span>
         </Link>
+        <Link to="/admin/receipts" className={`bottom-nav-link ${location.pathname.startsWith('/admin/receipts') ? 'active' : ''}`}>
+          <Receipt size={20} />
+          <span>Receipts</span>
+        </Link>
         <Link to="/admin/inventory" className={`bottom-nav-link ${location.pathname.startsWith('/admin/inventory') ? 'active' : ''}`}>
           <BarChart3 size={20} />
           <span>Health</span>
