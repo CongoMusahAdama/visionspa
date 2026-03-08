@@ -18,13 +18,35 @@ connectDB();
 const app = express();
 
 // Middleware
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - Origin: ${req.headers.origin}`);
+    next();
+});
+
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    'https://visionspa.netlify.app',
+    'https://www.visionspa.netlify.app',
+    'https://visionspa.onrender.com'
+];
+
 app.use(cors({
-    origin: process.env.NODE_ENV === 'production'
-        ? ['https://visionspa.netlify.app', 'https://www.visionspa.netlify.app', 'https://visionspa.onrender.com']
-        : ['http://localhost:5173', 'http://localhost:3000'],
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl)
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+            callback(null, true);
+        } else {
+            console.warn(`Blocked by CORS: ${origin}`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With']
 }));
 app.use(helmet({
     crossOriginResourcePolicy: false, // Helps when assets are served from different domains
