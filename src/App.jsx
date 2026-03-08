@@ -211,47 +211,8 @@ const ProductDetailModal = () => {
   );
 };
 
-// --- DATA ---
-const luxuryProducts = [
-  { id: 1, name: "Midnight Artisan", price: "170.00", badge: "With Pouch", image: "/midnight.png" },
-  { id: 2, name: "Teal Horizon Pilot", price: "170.00", badge: "With Pouch", image: "/luxuriesfashion1.png" },
-  { id: 3, name: "Executive Charcoal", price: "170.00", badge: "With Pouch", image: "/luxuriesfashion2.png" },
-  { id: 4, name: "Elite Azure Frame", price: "170.00", badge: "With Pouch", image: "/luxuriesfashion3.png" },
-  { id: 5, name: "Royal Obsidian", price: "170.00", badge: "With Pouch", image: "/luxuries-fashin4.png" },
-  { id: 6, name: "Golden Heritage", price: "170.00", badge: "With Pouch", image: "/luxuriesfashion6.png" },
-];
-
-const eliteProducts = [
-  { id: 7, name: "Elite Onyx", price: "200.00", badge: "With Case", image: "/elite.png" },
-  { id: 8, name: "Elite Sapphire", price: "200.00", badge: "With Case", image: "/elite1.png" },
-  { id: 10, name: "Elite Frost", price: "200.00", badge: "With Case", image: "/elite3.png" },
-  { id: 11, name: "Elite Midnight", price: "200.00", badge: "With Case", image: "/elite4.png" },
-  { id: 12, name: "Elite Rose", price: "200.00", badge: "With Case", image: "/elite5.png" },
-  { id: 13, name: "Elite Shadow", price: "200.00", badge: "With Case", image: "/elite6.png" },
-  { id: 14, name: "Elite Sun", price: "200.00", badge: "With Case", image: "/elite7.png" },
-  { id: 15, name: "Elite Wood", price: "200.00", badge: "With Case", image: "/elite8.png" },
-];
-
-const menProducts = [
-  { id: 16, name: "Classic Maverick", price: "200.00", badge: "With Case", image: "/men.png" },
-  { id: 17, name: "Urban Explorer", price: "200.00", badge: "With Case", image: "/men1.png" },
-  { id: 18, name: "Executive Pilot", price: "200.00", badge: "With Case", image: "/men2.png" },
-  { id: 19, name: "Modern Gent", price: "200.00", badge: "With Case", image: "/men3.png" },
-  { id: 20, name: "Elite Voyager", price: "200.00", badge: "With Case", image: "/men5.png" },
-];
-
-// Dynamic categories will be fetched from backend and passed to components.
-
-const allProducts = [
-  ...luxuryProducts.map(p => ({ ...p, category: 'Luxury' })),
-  ...eliteProducts.map(p => ({ ...p, category: 'Elite' })),
-  ...menProducts.map(p => ({ ...p, category: 'Men' }))
-];
-
-const featuredProducts = [
-  ...luxuryProducts.slice(0, 4),
-  ...eliteProducts.slice(0, 4)
-];
+// Dynamic product data will be fetched from backend.
+const allProducts = [];
 
 // --- CUSTOM CURRENCY ICONS ---
 const ReceiptCedi = ({ size = 20, ...props }) => (
@@ -3109,14 +3070,12 @@ const App = () => {
       // Load public products
       const prodRes = await apiRequest('/products');
       if (prodRes.success && prodRes.data?.length > 0) {
-        setProducts(prev => {
-          const existingNames = new Set(prodRes.data.map(p => p.name));
-          const filteredStatic = prev.filter(p => !existingNames.has(p.name));
-          return [...filteredStatic, ...prodRes.data];
-        });
+        setProducts(prodRes.data);
 
         const productCategories = prodRes.data.map(p => p.category).filter(Boolean);
         setCategories(prev => [...new Set([...prev, ...productCategories])]);
+      } else {
+        setProducts([]);
       }
 
       // Verify Auth (Cookie-based)
