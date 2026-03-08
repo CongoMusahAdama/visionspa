@@ -1179,7 +1179,7 @@ const CollectionsPage = () => {
 
         <div className="collections-main-grid">
           <div className="large-collection-card reveal">
-            <img src={collectionWomen} alt="Women's Elite Collection" />
+            <img src="/women_elite.png" alt="Women's Elite Collection" />
             <div className="hero-overlay" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.7))' }}></div>
             <div className="collection-overlay-content">
               <span className="collection-type">Editorial</span>
@@ -1584,6 +1584,98 @@ const SupportBot = () => {
           </div>
         )}
       </button>
+    </div>
+  );
+};
+
+// --- FORCE VERIFICATION / PASSWORD CHANGE ---
+
+const ForcePasswordChangeModal = ({ setUser }) => {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setError('New passwords do not match');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await apiRequest('/auth/updatepassword', 'PUT', {
+        currentPassword,
+        newPassword
+      });
+      Swal.fire('Success', 'Password updated securely. Welcome!', 'success');
+      setUser(prev => ({ ...prev, needsPasswordChange: false }));
+    } catch (err) {
+      setError(err.message || 'Failed to update password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="product-modal-backdrop" style={{ zIndex: 99999 }}>
+      <div className="product-modal-window p-8 max-w-md w-full" style={{ padding: '2rem', maxWidth: '400px' }}>
+        <h2 className="text-2xl font-bold text-center mb-6 serif">Security Requirement</h2>
+        <p className="text-center mb-6 text-gray-500 text-sm">
+          Welcome! Before you can access the dashboard, you must change your password from the default one provided.
+        </p>
+
+        {error && <div className="bg-red-50 text-red-500 p-3 rounded-md mb-4 text-sm text-center font-medium border border-red-100">{error}</div>}
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Current Password</label>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="w-full border border-gray-300 rounded-md p-2"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">New Password</label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="w-full border border-gray-300 rounded-md p-2"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Confirm New Password</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full border border-gray-300 rounded-md p-2"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[#008080] text-white py-3 rounded-md font-bold mt-4 hover:bg-[#007070] transition-colors"
+          >
+            {loading ? 'Updating...' : 'Update Password & Continue'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
@@ -2715,26 +2807,51 @@ const AdminReceipts = ({ orders }) => {
                   </td>
                   <td data-label="Date">{order.date}</td>
                   <td data-label="Actions">
-                    <button
-                      onClick={() => setSelectedReceipt(order)}
-                      style={{
-                        padding: '0.6rem 1rem',
-                        borderRadius: '10px',
-                        background: '#008080',
-                        color: 'white',
-                        border: 'none',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.4rem',
-                        width: 'max-content'
-                      }}
-                    >
-                      <ReceiptCedi size={14} />
-                      Generate Receipt
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => setSelectedReceipt(order)}
+                        style={{
+                          padding: '0.6rem 1rem',
+                          borderRadius: '10px',
+                          background: '#008080',
+                          color: 'white',
+                          border: 'none',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                          width: 'max-content'
+                        }}
+                      >
+                        <Receipt size={14} />
+                        Receipt
+                      </button>
+
+                      {order.payment !== 'Paid' && (
+                        <button
+                          onClick={() => updateOrder(order._id || order.id, { payment: 'Paid' })}
+                          style={{
+                            padding: '0.6rem 1rem',
+                            borderRadius: '10px',
+                            background: '#16a34a',
+                            color: 'white',
+                            border: 'none',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            width: 'max-content'
+                          }}
+                        >
+                          <CheckCircle size={14} />
+                          Mark Paid
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -3098,6 +3215,7 @@ const App = () => {
         <Router>
           <div className="app">
             <Navbar />
+            {user?.needsPasswordChange && <ForcePasswordChangeModal setUser={setUser} />}
             <Routes>
               <Route path="/" element={<HomePage products={products} categories={categories} />} />
               <Route path="/shop" element={<ShopPage products={products} categories={categories} />} />

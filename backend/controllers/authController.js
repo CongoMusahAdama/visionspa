@@ -21,7 +21,8 @@ const sendTokenResponse = (admin, statusCode, res) => {
             _id: admin._id,
             name: admin.name,
             email: admin.email,
-            phone: admin.phone
+            phone: admin.phone,
+            needsPasswordChange: admin.needsPasswordChange
         });
 };
 
@@ -92,4 +93,31 @@ exports.logout = async (req, res) => {
         success: true,
         data: {},
     });
+};
+
+// @desc    Update password
+// @route   PUT /api/auth/updatepassword
+// @access  Private
+exports.updatePassword = async (req, res) => {
+    try {
+        const admin = await Admin.findById(req.user.id).select('+password');
+
+        if (!admin) {
+            return res.status(404).json({ success: false, message: 'Admin not found' });
+        }
+
+        // Check current password
+        const isMatch = await admin.matchPassword(req.body.currentPassword);
+        if (!isMatch) {
+            return res.status(401).json({ success: false, message: 'Incorrect current password' });
+        }
+
+        admin.password = req.body.newPassword;
+        admin.needsPasswordChange = false;
+        await admin.save();
+
+        sendTokenResponse(admin, 200, res);
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 };

@@ -92,7 +92,8 @@ const seedAdmin = async () => {
             email: adminEmail,
             phone: adminPhone,
             password: adminPassword,
-            role: 'super-admin'
+            role: 'super-admin',
+            needsPasswordChange: true
         };
 
         const adminExists = await Admin.findOne({
@@ -103,12 +104,7 @@ const seedAdmin = async () => {
             await Admin.create(adminData);
             console.log('--- Default Admin Seeded Successfully ---');
         } else {
-            // Update existing admin with latest .env credentials for development convenience
-            adminExists.email = adminEmail;
-            adminExists.phone = adminPhone;
-            adminExists.password = adminPassword; // Pre-save middleware in Admin.js handles hashing
-            await adminExists.save();
-            console.log('--- Admin Credentials Synchronized ---');
+            console.log('--- Admin Already Exists, Skipping Seed ---');
         }
     } catch (error) {
         console.error('Seeding error:', error.message);

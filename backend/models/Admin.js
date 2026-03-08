@@ -27,6 +27,10 @@ const AdminSchema = new mongoose.Schema({
         type: String,
         enum: ['admin', 'super-admin'],
         default: 'admin',
+    },
+    needsPasswordChange: {
+        type: Boolean,
+        default: false,
     }
 }, { timestamps: true });
 
