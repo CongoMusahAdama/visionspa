@@ -67,7 +67,7 @@ app.use('/api/upload', require('./routes/uploadRoutes'));
 if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(__dirname, '../dist')));
 
-    app.get('*', (req, res) => {
+    app.get('/*path', (req, res) => {
         res.sendFile(path.resolve(__dirname, '../', 'dist', 'index.html'));
     });
 } else {
