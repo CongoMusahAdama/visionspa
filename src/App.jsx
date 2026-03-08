@@ -1806,6 +1806,22 @@ const AdminDashboard = ({ products, categories, orders, addProduct, updateProduc
   const [isMinimized, setIsMinimized] = useState(false);
   const location = useLocation();
 
+  const handleMobileLogout = () => {
+    Swal.fire({
+      title: 'Sign Out?',
+      text: "Are you sure you want to end your session?",
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#008080',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Yes, Sign Out'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        onLogout();
+      }
+    });
+  };
+
   return (
     <div className={`dashboard-layout ${isMinimized ? 'minimized' : ''}`}>
       {/* Sidebar */}
@@ -1866,7 +1882,7 @@ const AdminDashboard = ({ products, categories, orders, addProduct, updateProduc
         <div className="admin-mobile-nav">
           <Menu size={24} onClick={() => setIsMobileOpen(!isMobileOpen)} />
           <h2 className="serif">Vision Admin</h2>
-          <div className="admin-user-avatar">
+          <div className="admin-user-avatar" onClick={handleMobileLogout} style={{ cursor: 'pointer' }}>
             <User size={20} />
           </div>
         </div>
