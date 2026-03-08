@@ -138,7 +138,8 @@ const ProductDetailModal = () => {
     }, 800);
   };
 
-  const { name, price, discountPrice, badge, image, comesWithPouch } = selectedProduct;
+  const { name, price, discountPrice, discountPercentage, badge, image, comesWithPouch } = selectedProduct;
+  const finalDiscountPrice = discountPrice || (discountPercentage > 0 ? (price * (1 - discountPercentage / 100)).toFixed(2) : null);
 
   return (
     <div className="product-modal-backdrop" onClick={closeProduct}>
@@ -154,10 +155,10 @@ const ProductDetailModal = () => {
           <div className="modal-info">
             <h2 className="modal-title serif">{name}</h2>
             <p className="modal-price">
-              {discountPrice ? (
+              {finalDiscountPrice ? (
                 <>
                   <span style={{ textDecoration: 'line-through', color: '#94a3b8', fontSize: '0.85em', marginRight: '0.5rem' }}>GH₵{price}</span>
-                  <span style={{ color: '#ef4444' }}>GH₵{discountPrice}</span>
+                  <span style={{ color: '#ef4444' }}>GH₵{finalDiscountPrice}</span>
                 </>
               ) : (
                 `GH₵${price}`
@@ -2137,7 +2138,8 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct, update
     category: 'Luxury',
     description: '',
     comesWithPouch: false,
-    images: []
+    images: [],
+    discountPercentage: 0
   });
 
   const handleEdit = (prod) => {
@@ -2150,7 +2152,8 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct, update
       category: prod.category || 'Luxury',
       description: prod.description || '',
       comesWithPouch: !!prod.comesWithPouch,
-      images: prod.images || (prod.image ? [prod.image] : [])
+      images: prod.images || (prod.image ? [prod.image] : []),
+      discountPercentage: prod.discountPercentage || 0
     });
     setShowModal(true);
   };
@@ -2158,7 +2161,7 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct, update
   const closeModal = () => {
     setShowModal(false);
     setEditingId(null);
-    setNewProd({ name: '', price: '', discountPrice: '', stock: '', category: 'Luxury', description: '', comesWithPouch: false, images: [] });
+    setNewProd({ name: '', price: '', discountPrice: '', stock: '', category: 'Luxury', description: '', comesWithPouch: false, images: [], discountPercentage: 0 });
   };
 
   const handleImageChange = async (e) => {
@@ -2225,10 +2228,17 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct, update
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const prodData = {
+    const priceVal = parseFloat(newProd.price);
+    const discPercent = parseFloat(newProd.discountPercentage || 0);
+    const calculatedDiscountPrice = discPercent > 0
+      ? parseFloat((priceVal * (1 - discPercent / 100)).toFixed(2))
+      : null;
+
+    const finalProdData = {
       ...newProd,
-      price: parseFloat(newProd.price),
-      discountPrice: newProd.discountPrice ? parseFloat(newProd.discountPrice) : null,
+      price: priceVal,
+      discountPercentage: discPercent,
+      discountPrice: calculatedDiscountPrice,
       stock: parseInt(newProd.stock),
       sizes: ['M', 'L'],
       image: newProd.images[0] || '/midnight.png'
@@ -2236,9 +2246,9 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct, update
 
     let success = false;
     if (editingId) {
-      success = await updateProduct(editingId, prodData);
+      success = await updateProduct(editingId, finalProdData);
     } else {
-      success = await addProduct(prodData);
+      success = await addProduct(finalProdData);
     }
 
     if (success) {
@@ -2288,8 +2298,13 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct, update
                         <input type="number" required placeholder="0.00" value={newProd.price} onChange={e => setNewProd({ ...newProd, price: e.target.value })} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '1rem' }} />
                       </div>
                       <div>
-                        <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.9rem', fontWeight: 700, color: '#334155' }}>Promo (Opt)</label>
-                        <input type="number" placeholder="Discount Price" value={newProd.discountPrice} onChange={e => setNewProd({ ...newProd, discountPrice: e.target.value })} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '1rem' }} />
+                        <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.9rem', fontWeight: 700, color: '#334155' }}>Discount (%)</label>
+                        <input type="number" placeholder="2" value={newProd.discountPercentage} onChange={e => setNewProd({ ...newProd, discountPercentage: e.target.value })} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '1rem' }} />
+                        {newProd.discountPercentage > 0 && newProd.price && (
+                          <span style={{ fontSize: '0.7rem', color: '#008080', fontWeight: 600 }}>
+                            Final: GH₵{(newProd.price * (1 - newProd.discountPercentage / 100)).toFixed(2)}
+                          </span>
+                        )}
                       </div>
                       <div>
                         <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.9rem', fontWeight: 700, color: '#334155' }}>Initial Stock</label>
