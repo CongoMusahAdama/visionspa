@@ -2990,7 +2990,7 @@ const App = () => {
   };
 
   const addProduct = async (newProduct) => {
-    const res = await apiRequest('/products', 'POST', newProduct, token);
+    const res = await apiRequest('/products', 'POST', newProduct);
     if (res.success) {
       setProducts(prev => [res.data, ...prev]);
       Swal.fire({
@@ -3006,7 +3006,7 @@ const App = () => {
   };
 
   const updateProduct = async (id, updated) => {
-    const res = await apiRequest(`/products/${id}`, 'PUT', updated, token);
+    const res = await apiRequest(`/products/${id}`, 'PUT', updated);
     if (res.success) {
       setProducts(prev => prev.map(p => p._id === id ? res.data : p));
       Swal.fire({
@@ -3034,7 +3034,7 @@ const App = () => {
     });
 
     if (result.isConfirmed) {
-      const res = await apiRequest(`/products/${id}`, 'DELETE', null, token);
+      const res = await apiRequest(`/products/${id}`, 'DELETE', null);
       if (res.success) {
         setProducts(prev => prev.filter(p => p._id !== id));
         Swal.fire({
@@ -3062,7 +3062,7 @@ const App = () => {
         iconColor: '#008080'
       });
 
-      if (token) setOrders(prev => [res.data, ...prev]); // Update admin list if logged in
+      if (user) setOrders(prev => [res.data, ...prev]); // Update admin list if logged in
 
       // Update local product stocks to match server
       if (res.data.items) {
@@ -3075,7 +3075,7 @@ const App = () => {
   };
 
   const updateOrder = async (id, updated) => {
-    const res = await apiRequest(`/orders/${id}`, 'PUT', updated, token);
+    const res = await apiRequest(`/orders/${id}`, 'PUT', updated);
     if (res.success) {
       setOrders(prev => prev.map(o => o._id === id ? res.data : o));
       Swal.fire({
@@ -3115,7 +3115,7 @@ const App = () => {
               <Route
                 path="/admin/*"
                 element={
-                  token ? (
+                  user ? (
                     <AdminDashboard
                       products={products}
                       categories={categories}
