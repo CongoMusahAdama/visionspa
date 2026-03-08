@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build-all": "npm install --legacy-peer-deps && npm run build && cd backend && npm install --legacy-peer-deps",
+    "build-all": "npm install --legacy-peer-deps --include=dev && npm run build && cd backend && npm install --legacy-peer-deps",
     "start-server": "node backend/server.js",
     "lint": "eslint .",
     "preview": "vite preview"
