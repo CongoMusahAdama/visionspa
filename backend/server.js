@@ -29,7 +29,11 @@ const allowedOrigins = [
     'http://127.0.0.1:5173',
     'https://visionspa.netlify.app',
     'https://www.visionspa.netlify.app',
-    'https://visionspa.onrender.com'
+    'https://visionspa.onrender.com',
+    'https://thevisionspa.store',
+    'https://www.thevisionspa.store',
+    'https://visionspa.store',
+    'https://www.visionspa.store'
 ];
 
 app.use(cors({

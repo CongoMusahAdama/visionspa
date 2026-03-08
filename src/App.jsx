@@ -7,7 +7,7 @@ import './Dashboard.css';
 import Swal from 'sweetalert2';
 import html2pdf from 'html2pdf.js';
 
-const API_URL = import.meta.env.VITE_API_URL || (window.location.origin.includes('localhost') ? 'http://localhost:5000/api' : `${window.location.origin}/api`);
+const API_URL = import.meta.env.VITE_API_URL || (window.location.origin.includes('localhost') ? 'http://localhost:5000/api' : 'https://visionspa.onrender.com/api');
 
 const apiRequest = async (endpoint, method = 'GET', body = null) => {
   const token = localStorage.getItem('vision_auth_token');
