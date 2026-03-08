@@ -52,7 +52,6 @@ app.use(helmet({
     crossOriginResourcePolicy: false, // Helps when assets are served from different domains
 }));
 app.use(express.json({ limit: '10kb' }));
-app.use(mongoSanitize());
 app.use(xss());
 app.use(cookieParser());
 
