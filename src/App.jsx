@@ -1871,6 +1871,15 @@ const AdminDashboard = ({ products, categories, orders, addProduct, updateProduc
             <ReceiptCedi size={18} />
             <span className="sidebar-text">Receipts</span>
           </Link>
+          <div className="sidebar-divider" style={{ margin: '1rem 0', height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+          <Link to="/" className="sidebar-link">
+            <Globe size={18} />
+            <span className="sidebar-text">View Website</span>
+          </Link>
+          <Link to="/shop" className="sidebar-link">
+            <ShoppingBag size={18} />
+            <span className="sidebar-text">Go to Shop</span>
+          </Link>
         </nav>
 
         <div className="sidebar-footer">
@@ -1885,8 +1894,13 @@ const AdminDashboard = ({ products, categories, orders, addProduct, updateProduc
       <main className="admin-main">
         {/* Mobile Nav Toggle */}
         <div className="admin-mobile-nav">
-          <Menu size={24} onClick={() => setIsMobileOpen(!isMobileOpen)} />
-          <h2 className="serif">Vision Admin</h2>
+          <div className="flex items-center gap-3">
+            <Menu size={24} onClick={() => setIsMobileOpen(!isMobileOpen)} />
+            <Link to="/" style={{ color: 'inherit', display: 'flex' }} title="View Store">
+              <Globe size={20} />
+            </Link>
+          </div>
+          <h2 className="serif" onClick={() => window.location.href = '/admin'} style={{ cursor: 'pointer' }}>Vision Admin</h2>
           <div className="admin-user-avatar" onClick={handleMobileLogout} style={{ cursor: 'pointer' }}>
             <User size={20} />
           </div>
