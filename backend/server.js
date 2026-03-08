@@ -18,17 +18,21 @@ connectDB();
 const app = express();
 
 // Middleware
-app.use(helmet());
-app.use(express.json({ limit: '10kb' })); // Limit body size to prevent DoS
-app.use(mongoSanitize()); // Prevent NoSQL Injection
-app.use(xss()); // Prevent XSS vulnerabilities
-app.use(cookieParser());
 app.use(cors({
     origin: process.env.NODE_ENV === 'production'
-        ? ['https://visionspa.netlify.app', 'https://visionspa.onrender.com'] // Allowed production origins
-        : ['http://localhost:5173', 'http://localhost:3000'],
-    credentials: true
+        ? ['https://visionspa.netlify.app', 'https://www.visionspa.netlify.app', 'https://visionspa.onrender.com']
+        : true, // Allow all locally
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
+app.use(helmet({
+    crossOriginResourcePolicy: false, // Helps when assets are served from different domains
+}));
+app.use(express.json({ limit: '10kb' }));
+app.use(mongoSanitize());
+app.use(xss());
+app.use(cookieParser());
 
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
