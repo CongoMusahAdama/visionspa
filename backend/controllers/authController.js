@@ -18,6 +18,7 @@ const sendTokenResponse = (admin, statusCode, res) => {
         .cookie('token', token, options)
         .json({
             success: true,
+            token,
             _id: admin._id,
             name: admin.name,
             email: admin.email,

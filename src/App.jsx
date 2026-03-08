@@ -10,7 +10,11 @@ import html2pdf from 'html2pdf.js';
 const API_URL = import.meta.env.VITE_API_URL || (window.location.origin.includes('localhost') ? 'http://localhost:5000/api' : `${window.location.origin}/api`);
 
 const apiRequest = async (endpoint, method = 'GET', body = null) => {
-  const headers = { 'Content-Type': 'application/json' };
+  const token = localStorage.getItem('vision_auth_token');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` })
+  };
 
   const config = {
     method,
@@ -2165,10 +2169,15 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct, update
     const formData = new FormData();
     files.forEach(f => formData.append('images', f));
 
+    const token = localStorage.getItem('vision_auth_token');
+
     try {
       const res = await fetch(`${API_URL}/upload`, {
         method: 'POST',
         credentials: 'include',
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
         body: formData
       });
 
@@ -3085,6 +3094,9 @@ const App = () => {
   }, []); // Only on mount now
 
   const handleLogin = (userData) => {
+    if (userData.token) {
+      localStorage.setItem('vision_auth_token', userData.token);
+    }
     setUser(userData);
   };
 
@@ -3103,6 +3115,7 @@ const App = () => {
 
     if (result.isConfirmed) {
       await apiRequest('/auth/logout'); // Clear cookie on backend
+      localStorage.removeItem('vision_auth_token');
       setUser(null);
       Swal.fire({
         title: 'Signed Out',
