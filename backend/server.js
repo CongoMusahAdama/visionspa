@@ -25,7 +25,7 @@ app.use(xss()); // Prevent XSS vulnerabilities
 app.use(cookieParser());
 app.use(cors({
     origin: process.env.NODE_ENV === 'production'
-        ? ['https://visionspa.netlify.app'] // Netlify Frontend URL
+        ? ['https://visionspa.netlify.app', 'https://visionspa.onrender.com'] // Allowed production origins
         : ['http://localhost:5173', 'http://localhost:3000'],
     credentials: true
 }));
