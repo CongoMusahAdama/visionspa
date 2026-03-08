@@ -1,6 +1,6 @@
 const express = require('express');
 const { getCategories, createCategory, deleteCategory } = require('../controllers/categoryController');
-const { protect } = require('./authRoutes'); // Assuming you have an auth middleware here if needed
+const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
