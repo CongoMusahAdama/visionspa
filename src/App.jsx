@@ -347,7 +347,7 @@ const SearchOverlay = ({ isOpen, onClose }) => {
   );
 };
 
-const Navbar = () => {
+const Navbar = ({ user }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -389,7 +389,14 @@ const Navbar = () => {
               <span className="nav-icon-label">Search</span>
               <Search size={20} strokeWidth={1.5} />
             </button>
-            <a href="#" className="icon-link desktop-only"><User size={20} strokeWidth={1.5} /></a>
+            {user ? (
+              <Link to="/admin" className="icon-link" title="Dashboard">
+                <LayoutDashboard size={20} strokeWidth={1.5} />
+                <span className="nav-icon-label" style={{ color: '#008080', fontWeight: 700 }}>Admin</span>
+              </Link>
+            ) : (
+              <Link to="/auth" className="icon-link"><User size={20} strokeWidth={1.5} /></Link>
+            )}
             <a href="#" className="icon-link desktop-only"><Heart size={20} strokeWidth={1.5} /></a>
             <NavCartButton />
             <button className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)}>
@@ -417,6 +424,9 @@ const Navbar = () => {
           <Link to="/shop" className="mobile-nav-link" onClick={() => setIsMobileMenuOpen(false)}>Shop</Link>
           <Link to="/collections" className="mobile-nav-link" onClick={() => setIsMobileMenuOpen(false)}>Collections</Link>
           <Link to="/about" className="mobile-nav-link" onClick={() => setIsMobileMenuOpen(false)}>About</Link>
+          {user && (
+            <Link to="/admin" className="mobile-nav-link" onClick={() => setIsMobileMenuOpen(false)} style={{ color: '#008080', fontWeight: 800 }}>Admin Dashboard</Link>
+          )}
         </nav>
         <div className="mobile-nav-footer">
           <div className="mobile-social-links">
@@ -3272,7 +3282,7 @@ const App = () => {
       <ModalProvider>
         <Router>
           <div className="app">
-            <Navbar />
+            <Navbar user={user} />
             {user?.needsPasswordChange && <ForcePasswordChangeModal setUser={setUser} />}
             <Routes>
               <Route path="/" element={<HomePage products={products} categories={categories} />} />
