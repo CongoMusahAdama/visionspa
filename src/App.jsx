@@ -9,9 +9,8 @@ import html2pdf from 'html2pdf.js';
 
 const API_URL = import.meta.env.VITE_API_URL || (window.location.origin.includes('localhost') ? 'http://localhost:5000/api' : `${window.location.origin}/api`);
 
-const apiRequest = async (endpoint, method = 'GET', body = null, token = null) => {
+const apiRequest = async (endpoint, method = 'GET', body = null) => {
   const headers = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const config = {
     method,
@@ -2059,10 +2058,9 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct, update
     files.forEach(f => formData.append('images', f));
 
     try {
-      const token = localStorage.getItem('visionToken');
-      const res = await fetch('http://localhost:5000/api/upload', {
+      const res = await fetch(`${API_URL}/upload`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
         body: formData
       });
 
@@ -2778,13 +2776,7 @@ const AdminCategories = ({ categories, setCategories }) => {
     e.preventDefault();
     if (newCat && !categories.includes(newCat)) {
       try {
-        const token = localStorage.getItem('visionToken');
-        const res = await fetch('http://localhost:5000/api/categories', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ name: newCat.trim() })
-        });
-        const data = await res.json();
+        const data = await apiRequest('/categories', 'POST', { name: newCat.trim() });
         if (data.success) {
           setCategories([...categories, data.data.name]);
         }
