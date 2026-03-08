@@ -1,9 +1,33 @@
 import React, { useState, useEffect, useContext, createContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { ShoppingBag, Heart, User, Search, ArrowRight, Instagram, Facebook, Twitter, Shield, Globe, Award, Mail, Phone, MessageCircle, Headset, X, Quote, Plus, Minus, Trash2, CheckCircle, Send, Menu, LayoutGrid, List, LayoutDashboard, Package, Layers, ShoppingCart, BarChart3, Receipt, Settings, LogOut, Edit3, Trash, Download, Filter, Eye, MoreVertical, AlertTriangle, Sparkles, Upload } from 'lucide-react';
+import { ShoppingBag, Heart, User, Search, ArrowRight, Instagram, Facebook, Twitter, Shield, Globe, Award, Mail, Phone, MessageCircle, Headset, X, Quote, Plus, Minus, Trash2, CheckCircle, Send, Menu, LayoutGrid, List, LayoutDashboard, Package, Layers, ShoppingCart, BarChart3, Receipt, Settings, LogOut, Edit3, Trash, Download, Filter, Eye, MoreVertical, AlertTriangle, Sparkles, Upload, PackageX } from 'lucide-react';
 import './App.css';
 import './mobile.css';
 import './Dashboard.css';
+import Swal from 'sweetalert2';
+import html2pdf from 'html2pdf.js';
+
+const API_URL = import.meta.env.VITE_API_URL || (window.location.origin.includes('localhost') ? 'http://localhost:5000/api' : `${window.location.origin}/api`);
+
+const apiRequest = async (endpoint, method = 'GET', body = null, token = null) => {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const config = {
+    method,
+    headers,
+    credentials: 'include', // Important for httpOnly cookies
+    ...(body && { body: JSON.stringify(body) })
+  };
+
+  try {
+    const res = await fetch(`${API_URL}${endpoint}`, config);
+    return await res.json();
+  } catch (error) {
+    console.error(`API Error (${endpoint}):`, error);
+    return { success: false, message: 'Server connection failed' };
+  }
+};
 
 // --- CART CONTEXT ---
 const CartContext = createContext(null);
@@ -111,7 +135,7 @@ const ProductDetailModal = () => {
     }, 800);
   };
 
-  const { name, price, badge, image } = selectedProduct;
+  const { name, price, discountPrice, badge, image, comesWithPouch } = selectedProduct;
 
   return (
     <div className="product-modal-backdrop" onClick={closeProduct}>
@@ -126,7 +150,21 @@ const ProductDetailModal = () => {
 
           <div className="modal-info">
             <h2 className="modal-title serif">{name}</h2>
-            <p className="modal-price">GH₵{price}</p>
+            <p className="modal-price">
+              {discountPrice ? (
+                <>
+                  <span style={{ textDecoration: 'line-through', color: '#94a3b8', fontSize: '0.85em', marginRight: '0.5rem' }}>GH₵{price}</span>
+                  <span style={{ color: '#ef4444' }}>GH₵{discountPrice}</span>
+                </>
+              ) : (
+                `GH₵${price}`
+              )}
+            </p>
+            {comesWithPouch && (
+              <p style={{ color: '#008080', fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
+                <CheckCircle size={14} /> Includes Vision Spa Protective Pouch
+              </p>
+            )}
 
             <div className="modal-qty-selector">
               <span>Quantity</span>
@@ -147,7 +185,7 @@ const ProductDetailModal = () => {
 
               <div className="modal-social-grid">
                 <a
-                  href={`https://wa.me/233552739280?text=${encodeURIComponent(`Hi Vision Spa! I'm interested in ordering ${qty} x ${name} (GH₵${price} each). Can you help me?`)}`}
+                  href={`https://wa.me/233552739280?text=${encodeURIComponent(`Hi Vision Spa! I'm interested in ordering ${qty} x ${name} (GH₵${discountPrice || price} each). Can you help me?`)}`}
                   target="_blank" rel="noreferrer"
                   className="modal-social-btn wa"
                 >
@@ -198,19 +236,38 @@ const menProducts = [
   { id: 20, name: "Elite Voyager", price: "200.00", badge: "With Case", image: "/men5.png" },
 ];
 
-const categories = [
-  { id: 'all', label: 'All Collections' },
-  { id: 'luxury', label: 'Luxury Fashion' },
-  { id: 'elite', label: 'Elite Collection' },
-  { id: 'men', label: "Men's Collection" }
-];
+// Dynamic categories will be fetched from backend and passed to components.
 
-const allProducts = [...luxuryProducts, ...eliteProducts, ...menProducts];
+const allProducts = [
+  ...luxuryProducts.map(p => ({ ...p, category: 'Luxury' })),
+  ...eliteProducts.map(p => ({ ...p, category: 'Elite' })),
+  ...menProducts.map(p => ({ ...p, category: 'Men' }))
+];
 
 const featuredProducts = [
   ...luxuryProducts.slice(0, 4),
   ...eliteProducts.slice(0, 4)
 ];
+
+// --- CUSTOM CURRENCY ICONS ---
+const ReceiptCedi = ({ size = 20, ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z" />
+    <path d="M11 9v6" />
+    <path d="M14 9.5a2.5 2.5 0 1 0 0 5" />
+  </svg>
+);
 
 // --- COMPONENTS ---
 
@@ -224,8 +281,9 @@ const NavCartButton = () => {
         e.stopPropagation();
         setIsCartOpen(true);
       }}
-      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}
+      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', position: 'relative' }}
     >
+      <span className="nav-icon-label">Bag</span>
       <span style={{ position: 'relative', display: 'inline-flex' }}>
         <ShoppingBag size={20} strokeWidth={1.2} />
         {cartCount > 0 && (
@@ -323,7 +381,8 @@ const Navbar = () => {
           </div>
 
           <div className="nav-icons">
-            <button className="icon-link" onClick={() => setIsSearchOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}>
+            <button className="icon-link" onClick={() => setIsSearchOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', position: 'relative' }}>
+              <span className="nav-icon-label">Search</span>
               <Search size={20} strokeWidth={1.5} />
             </button>
             <a href="#" className="icon-link desktop-only"><User size={20} strokeWidth={1.5} /></a>
@@ -414,11 +473,15 @@ const CollectionCard = ({ title, image, link }) => (
   </div>
 );
 
-const ProductCard = ({ id, name, price, badge, image }) => {
+const ProductCard = ({ id, _id, name, price, discountPrice, badge, image, status, stock, soldOutAt, comesWithPouch }) => {
+  const resolvedId = _id || id;
+  const isSoldOut = status === 'Sold Out' || stock === 0 || !!soldOutAt;
   const { cartItems, addToCart } = useCart();
   const { openProduct } = useModal();
-  const cartItem = cartItems.find(i => i.id === id);
+  const cartItem = cartItems.find(i => i.id === resolvedId);
   const inCart = !!cartItem;
+  const resolvedImage = image && !image.startsWith('blob:') ? image : '/midnight.png';
+  const currentPrice = discountPrice || price;
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 767);
 
   useEffect(() => {
@@ -428,29 +491,45 @@ const ProductCard = ({ id, name, price, badge, image }) => {
   }, []);
 
   const handleClick = (e) => {
-    // Open modal on click (always good for mobile viewing)
     if (isMobile || window.innerWidth <= 767) {
-      openProduct({ id, name, price, badge, image });
+      if (!isSoldOut) openProduct({ id: resolvedId, name, price, discountPrice, badge, image: resolvedImage, comesWithPouch });
     }
   };
 
   return (
-    <div className="product-card reveal" onClick={handleClick}>
+    <div className="product-card reveal" onClick={handleClick} style={{ opacity: isSoldOut ? 0.6 : 1, filter: isSoldOut ? 'grayscale(100%)' : 'none' }}>
       <div className="product-image-container">
-        {badge && <div className="product-badge">{badge}</div>}
+        {isSoldOut ? (
+          <div className="product-badge" style={{ backgroundColor: '#ef4444', color: '#fff', zIndex: 10, padding: '0.4rem 1rem', fontSize: '0.8rem', fontWeight: 800 }}>SOLD OUT</div>
+        ) : (
+          <div style={{ position: 'absolute', top: '10px', left: '10px', display: 'flex', flexDirection: 'column', gap: '5px', zIndex: 5 }}>
+            {badge && <div className="product-badge" style={{ position: 'relative', top: 0, left: 0 }}>{badge}</div>}
+            {comesWithPouch && <div className="product-badge" style={{ backgroundColor: '#008080', position: 'relative', top: 0, left: 0 }}>WITH POUCH</div>}
+            {discountPrice && <div className="product-badge" style={{ backgroundColor: '#ef4444', position: 'relative', top: 0, left: 0 }}>SALE</div>}
+          </div>
+        )}
         {/* Price badge removed for mobile redesign */}
-        {!isMobile && <div className="product-price-badge">GH₵{price}</div>}
+        {!isMobile && (
+          <div className="product-price-badge" style={{ backgroundColor: discountPrice ? '#ef4444' : '#fff', color: discountPrice ? '#fff' : '#1e293b' }}>
+            <span>GH₵{currentPrice}</span>
+          </div>
+        )}
         {inCart && (
           <div className="product-in-cart-badge">
             <CheckCircle size={14} />
             <span>In Cart</span>
           </div>
         )}
-        <img src={image} alt={name} className="product-main-image" />
-        <img src={image} alt={name} className="product-hover-image" style={{ filter: 'brightness(0.95)' }} />
+        <img src={resolvedImage} alt={name} className="product-main-image" />
+        <img src={resolvedImage} alt={name} className="product-hover-image" style={{ filter: 'brightness(0.95)' }} />
       </div>
       <div className="product-details">
         <h4 className="product-name">{name}</h4>
+        {comesWithPouch && (
+          <p style={{ fontSize: '0.7rem', color: '#008080', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '0.25rem' }}>
+            <CheckCircle size={12} /> Includes Pouch
+          </p>
+        )}
 
         {/* Mobile subtitle using badge or short description */}
         {isMobile && <p className="product-mobile-subtitle">{badge || "VISION SPA EXCLUSIVE"}</p>}
@@ -458,14 +537,27 @@ const ProductCard = ({ id, name, price, badge, image }) => {
         {/* Hide complex details on mobile, show only on desktop */}
         {!isMobile && (
           <div className="product-desktop-actions">
-            <p className="product-price">GH₵{price}</p>
-            <button className="add-to-cart-btn" onClick={(e) => { e.stopPropagation(); addToCart({ id, name, price, badge, image }); }}>
-              <Plus size={16} /> Add to Cart
+            <p className="product-price" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {discountPrice && <span style={{ textDecoration: 'line-through', color: '#94a3b8', fontSize: '0.85em' }}>GH₵{price}</span>}
+              <span style={{ color: discountPrice ? '#ef4444' : 'inherit' }}>GH₵{currentPrice}</span>
+            </p>
+            <button
+              className="add-to-cart-btn"
+              disabled={isSoldOut}
+              style={{ cursor: isSoldOut ? 'not-allowed' : 'pointer', opacity: isSoldOut ? 0.6 : 1 }}
+              onClick={(e) => { e.stopPropagation(); if (!isSoldOut) addToCart({ id: resolvedId, name, price: currentPrice, badge, image: resolvedImage }); }}>
+              <Plus size={16} /> {isSoldOut ? 'Sold Out' : 'Add to Cart'}
             </button>
             <div className="product-social-buy">
-              <a href={`https://wa.me/233552739280`} target="_blank" rel="noreferrer" className="direct-wa-button">
-                Direct WhatsApp Order
-              </a>
+              {isSoldOut ? (
+                <span className="direct-wa-button" style={{ opacity: 0.5, cursor: 'not-allowed', background: '#e2e8f0', color: '#94a3b8' }}>
+                  Currently Unavailable
+                </span>
+              ) : (
+                <a href={`https://wa.me/233552739280`} target="_blank" rel="noreferrer" className="direct-wa-button">
+                  Direct WhatsApp Order
+                </a>
+              )}
             </div>
           </div>
         )}
@@ -473,15 +565,29 @@ const ProductCard = ({ id, name, price, badge, image }) => {
         {isMobile && (
           <div className="product-mobile-actions-wrapper">
             <div className="mobile-buy-info">
-              <span className="direct-buy-msg">
-                <MessageCircle size={10} style={{ marginRight: '4px' }} />
-                Order direct on WhatsApp & IG
-              </span>
+              {isSoldOut ? (
+                <span className="direct-buy-msg" style={{ color: '#ef4444' }}>
+                  <PackageX size={10} style={{ marginRight: '4px' }} />
+                  Currently Out of Stock
+                </span>
+              ) : (
+                <span className="direct-buy-msg">
+                  <MessageCircle size={10} style={{ marginRight: '4px' }} />
+                  Order direct on WhatsApp & IG
+                </span>
+              )}
             </div>
             <div className="product-mobile-actions">
-              <span className="mobile-price">₵ {price}</span>
-              <button className="mobile-add-btn" onClick={(e) => { e.stopPropagation(); addToCart({ id, name, price, badge, image }); }}>
-                <Plus size={18} color="white" strokeWidth={3} />
+              <span className="mobile-price">
+                {discountPrice && <span style={{ textDecoration: 'line-through', color: '#94a3b8', fontSize: '0.85em', marginRight: '4px' }}>GH₵{price}</span>}
+                <span style={{ color: discountPrice ? '#ef4444' : 'inherit' }}>GH₵{currentPrice}</span>
+              </span>
+              <button
+                className="mobile-add-btn"
+                disabled={isSoldOut}
+                style={{ background: isSoldOut ? '#ef4444' : '' }}
+                onClick={(e) => { e.stopPropagation(); if (!isSoldOut) addToCart({ id: resolvedId, name, price: currentPrice, badge, image: resolvedImage }); }}>
+                {isSoldOut ? <PackageX size={18} color="white" /> : <Plus size={18} color="white" strokeWidth={3} />}
               </button>
             </div>
           </div>
@@ -686,8 +792,13 @@ const Footer = () => {
 
 // --- PAGE COMPONENTS ---
 
-const HomePage = () => {
+const HomePage = ({ products = [], categories = [] }) => {
   const [activeCategory, setActiveCategory] = useState('all');
+
+  const categoryTabs = [
+    { id: 'all', label: 'All Collections' },
+    ...categories.map(c => typeof c === 'object' ? c : { id: c.toLowerCase(), label: c })
+  ];
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -701,13 +812,30 @@ const HomePage = () => {
     return () => observer.disconnect();
   }, [activeCategory]);
 
-  const filteredFeatured = allProducts.filter(product => {
-    if (activeCategory === 'all') return featuredProducts.some(fp => fp.id === product.id);
-    if (activeCategory === 'luxury') return luxuryProducts.some(p => p.id === product.id);
-    if (activeCategory === 'elite') return eliteProducts.some(p => p.id === product.id);
-    if (activeCategory === 'men') return menProducts.some(p => p.id === product.id);
-    return false;
-  }).slice(0, 8);
+  const filteredFeatured = products
+    .filter(product => {
+      // Hide if sold out > 3 days ago
+      const isSoldOut = product.status === 'Sold Out' || product.stock === 0 || !!product.soldOutAt;
+      if (isSoldOut && product.soldOutAt) {
+        const soldDate = new Date(product.soldOutAt);
+        const daysSoldOut = (new Date() - soldDate) / (1000 * 60 * 60 * 24);
+        if (daysSoldOut > 3) return false;
+      }
+
+      // Filter by category
+      if (activeCategory !== 'all' && product.category?.toLowerCase() !== activeCategory.toLowerCase()) return false;
+      // Filter out products with broken blob URLs (blob URLs don't persist across sessions)
+      const img = product.image || '';
+      if (img.startsWith('blob:')) return false;
+      return true;
+    })
+    // Sort: DB products with real images first (createdAt), then static
+    .sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+      const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+      return dateB - dateA;
+    })
+    .slice(0, 16);
 
   return (
     <>
@@ -742,7 +870,7 @@ const HomePage = () => {
 
             {/* Category Filter Tabs */}
             <div className="flex justify-center gap-8 mt-8">
-              {categories.map(cat => (
+              {categoryTabs.map(cat => (
                 <button
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
@@ -778,7 +906,7 @@ const HomePage = () => {
 
           <div className="product-grid">
             {filteredFeatured.map(product => (
-              <ProductCard key={product.id} {...product} />
+              <ProductCard key={product._id || product.id} {...product} id={product._id || product.id} />
             ))}
           </div>
           <div className="flex justify-center" style={{ marginTop: '5rem' }}>
@@ -1089,7 +1217,7 @@ const CollectionsPage = () => {
   );
 };
 
-const ShopPage = () => {
+const ShopPage = ({ products = [], categories = [] }) => {
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('Recommended');
@@ -1104,12 +1232,18 @@ const ShopPage = () => {
     }
   }, [searchParams]);
 
-  const filteredProducts = allProducts
+  const filteredProducts = products
     .filter(product => {
+      // Hide if sold out > 3 days ago
+      const isSoldOut = product.status === 'Sold Out' || product.stock === 0 || !!product.soldOutAt;
+      if (isSoldOut && product.soldOutAt) {
+        const soldDate = new Date(product.soldOutAt);
+        const daysSoldOut = (new Date() - soldDate) / (1000 * 60 * 60 * 24);
+        if (daysSoldOut > 3) return false;
+      }
+
       const matchesCategory = activeCategory === 'all' ||
-        (activeCategory === 'luxury' && luxuryProducts.find(p => p.id === product.id)) ||
-        (activeCategory === 'elite' && eliteProducts.find(p => p.id === product.id)) ||
-        (activeCategory === 'men' && menProducts.find(p => p.id === product.id));
+        product.category?.toLowerCase() === activeCategory.toLowerCase();
 
       const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesPrice = parseFloat(product.price) <= maxPrice;
@@ -1131,6 +1265,11 @@ const ShopPage = () => {
     document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
     return () => observer.disconnect();
   }, [activeCategory, searchQuery, sortBy, maxPrice]);
+
+  const categoryTabs = [
+    { id: 'all', label: 'All Collections' },
+    ...categories.map(c => typeof c === 'object' ? c : { id: c.toLowerCase(), label: c })
+  ];
 
   return (
     <div className="shop-page-wrapper">
@@ -1171,7 +1310,7 @@ const ShopPage = () => {
                 <div className="sidebar-section">
                   <h4 className="sidebar-title">Collections</h4>
                   <div className="category-list">
-                    {categories.map((cat) => (
+                    {categoryTabs.map((cat) => (
                       <button
                         key={cat.id}
                         onClick={() => {
@@ -1182,15 +1321,12 @@ const ShopPage = () => {
                       >
                         <span className="cat-icon">
                           {cat.id === 'all' && <ShoppingBag size={18} />}
-                          {cat.id === 'luxury' && <Award size={18} />}
-                          {cat.id === 'elite' && <Shield size={18} />}
-                          {cat.id === 'men' && <User size={18} />}
+                          {cat.id !== 'all' && <Award size={18} />}
                         </span>
                         <span className="cat-label">{cat.label}</span>
                         <span className="cat-count">
-                          {cat.id === 'all' ? allProducts.length :
-                            cat.id === 'luxury' ? luxuryProducts.length :
-                              cat.id === 'elite' ? eliteProducts.length : menProducts.length}
+                          {cat.id === 'all' ? products.length :
+                            products.filter(p => p.category?.toLowerCase() === cat.id).length}
                         </span>
                       </button>
                     ))}
@@ -1282,7 +1418,7 @@ const ShopPage = () => {
                 <div className="mobile-category-filters">
                   <p className="mobile-filter-label">FILTER BY CATEGORY</p>
                   <div className="mobile-category-scroll-row">
-                    {categories.map((cat) => (
+                    {categoryTabs.map((cat) => (
                       <button
                         key={cat.id}
                         onClick={() => setActiveCategory(cat.id)}
@@ -1328,7 +1464,7 @@ const ShopPage = () => {
                 <div className="active-filters-row">
                   {activeCategory !== 'all' && (
                     <div className="filter-chip">
-                      {categories.find(c => c.id === activeCategory)?.label}
+                      {categoryTabs.find(c => c.id === activeCategory)?.label}
                       <X size={14} onClick={() => setActiveCategory('all')} />
                     </div>
                   )}
@@ -1350,7 +1486,7 @@ const ShopPage = () => {
               <div className="shop-results-container">
                 {filteredProducts.length > 0 ? (
                   <div className="product-grid-shop fade-in">
-                    {filteredProducts.map(p => <ProductCard key={p.id} {...p} />)}
+                    {filteredProducts.map(p => <ProductCard key={p._id || p.id} {...p} />)}
                   </div>
                 ) : (
                   <div className="no-results reveal">
@@ -1455,9 +1591,11 @@ const SupportBot = () => {
 
 // --- AUTH PAGE ---
 
-const AuthPage = () => {
-  const [email, setEmail] = useState('');
+const AuthPage = ({ onLogin }) => {
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
   const [isLoaded, setIsLoaded] = useState(false);
@@ -1468,11 +1606,36 @@ const AuthPage = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    // Simulate admin login
-    console.log("Admin log-in attempt:", email);
-    navigate('/admin');
+    setError('');
+    setIsSubmitting(true);
+
+    const res = await apiRequest('/auth/login', 'POST', { identifier, password });
+
+    if (res.success) {
+      Swal.fire({
+        title: `Welcome Back, ${(res.name && res.name !== 'Vision Admin' && res.name !== 'Admin')
+          ? res.name.split(' ')[0]
+          : 'Florence'
+          }!`,
+        text: `Success! Authenticated as ${res.name || 'Florence '}`,
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false,
+        background: '#fff',
+        color: '#1a202c',
+        iconColor: '#008080',
+        customClass: {
+          popup: 'premium-swal-popup'
+        }
+      });
+      onLogin(res);
+      navigate('/admin');
+    } else {
+      setError(res.message || 'Invalid credentials');
+    }
+    setIsSubmitting(false);
   };
 
   return (
@@ -1497,16 +1660,18 @@ const AuthPage = () => {
           </div>
 
           <form onSubmit={handleLogin} className="auth-form">
+            {error && <div className="auth-error-msg">{error}</div>}
+
             <div className="auth-input-wrapper">
-              <label>Email Address</label>
+              <label>Email or Phone</label>
               <div className="auth-input-group">
-                <Mail className="input-icon" size={18} />
+                <User className="input-icon" size={18} />
                 <input
-                  type="email"
+                  type="text"
                   required
-                  placeholder="admin@visionspa.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@visionspa.com or +233..."
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                 />
               </div>
             </div>
@@ -1525,17 +1690,9 @@ const AuthPage = () => {
               </div>
             </div>
 
-            <div className="auth-extra">
-              <label className="remember-me">
-                <input type="checkbox" />
-                <span className="checkbox-custom"></span>
-                <span>Keep me signed in</span>
-              </label>
-            </div>
-
-            <button type="submit" className="auth-submit-btn">
-              <span>Enter Dashboard</span>
-              <ArrowRight size={18} />
+            <button type="submit" className="auth-submit-btn" disabled={isSubmitting}>
+              <span>{isSubmitting ? 'Authenticating...' : 'Enter Dashboard'}</span>
+              {!isSubmitting && <ArrowRight size={18} />}
             </button>
           </form>
 
@@ -1553,7 +1710,7 @@ const AuthPage = () => {
 
 // --- ADMIN DASHBOARD COMPONENTS ---
 
-const AdminDashboard = ({ products, categories, orders, addProduct, deleteProduct, addOrder, setCategories }) => {
+const AdminDashboard = ({ products, categories, orders, addProduct, updateProduct, deleteProduct, addOrder, updateOrder, setCategories, user, onLogout }) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const location = useLocation();
@@ -1566,7 +1723,10 @@ const AdminDashboard = ({ products, categories, orders, addProduct, deleteProduc
           {!isMinimized && (
             <div className="flex items-center gap-4">
               <img src="/logo.jpeg" alt="Vision Spa" className="admin-logo" />
-              <h2 className="serif" style={{ fontSize: '1.2rem', color: 'white' }}>Admin</h2>
+              <div className="admin-profile-hint">
+                <h2 className="serif" style={{ fontSize: '1rem', color: 'white', margin: 0 }}>Vision Spa</h2>
+                <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{user?.role || 'Admin'}</p>
+              </div>
             </div>
           )}
           <button className="sidebar-minimize-toggle" onClick={() => setIsMinimized(!isMinimized)}>
@@ -1596,16 +1756,16 @@ const AdminDashboard = ({ products, categories, orders, addProduct, deleteProduc
             <span className="sidebar-text">Inventory</span>
           </Link>
           <Link to="/admin/receipts" className={`sidebar-link ${location.pathname.startsWith('/admin/receipts') ? 'active' : ''}`}>
-            <Receipt size={18} />
+            <ReceiptCedi size={18} />
             <span className="sidebar-text">Receipts</span>
           </Link>
         </nav>
 
         <div className="sidebar-footer">
-          <Link to="/auth" className="logout-btn">
+          <button onClick={onLogout} className="logout-btn" style={{ width: '100%', border: 'none', background: 'none' }}>
             <LogOut size={18} />
             <span className="sidebar-text">Sign Out</span>
-          </Link>
+          </button>
         </div>
       </aside>
 
@@ -1621,59 +1781,75 @@ const AdminDashboard = ({ products, categories, orders, addProduct, deleteProduc
         </div>
 
         <Routes>
-          <Route path="/" element={<DashboardOverview products={products} orders={orders} />} />
-          <Route path="/products" element={<AdminProducts products={products} categories={categories} deleteProduct={deleteProduct} addProduct={addProduct} />} />
-          <Route path="/orders" element={<AdminOrders orders={orders} addOrder={addOrder} products={products} />} />
+          <Route path="/" element={<DashboardOverview products={products} orders={orders} user={user} />} />
+          <Route path="/products" element={<AdminProducts products={products} categories={categories} deleteProduct={deleteProduct} addProduct={addProduct} updateProduct={updateProduct} />} />
+          <Route path="/orders" element={<AdminOrders orders={orders} addOrder={addOrder} updateOrder={updateOrder} products={products} />} />
           <Route path="/receipts" element={<AdminReceipts orders={orders} />} />
           <Route path="/categories" element={<AdminCategories categories={categories} setCategories={setCategories} />} />
           <Route path="/inventory" element={<AdminInventory products={products} />} />
           {/* Default to Overview */}
-          <Route path="*" element={<DashboardOverview products={products} orders={orders} />} />
+          <Route path="*" element={<DashboardOverview products={products} orders={orders} user={user} />} />
         </Routes>
       </main>
 
-      {/* Admin Bottom Navigation (Mobile) */}
+      {/* Admin Bottom Navigation (Mobile) — Pulse-Style */}
       <nav className="admin-bottom-nav">
+        {/* Left side: 2 links */}
         <Link to="/admin" className={`bottom-nav-link ${location.pathname === '/admin' ? 'active' : ''}`}>
-          <LayoutDashboard size={20} />
+          <LayoutDashboard size={22} />
           <span>Home</span>
         </Link>
         <Link to="/admin/products" className={`bottom-nav-link ${location.pathname.startsWith('/admin/products') ? 'active' : ''}`}>
-          <Package size={20} />
+          <Package size={22} />
           <span>Stock</span>
         </Link>
-        <Link to="/admin/orders" className={`bottom-nav-link ${location.pathname.startsWith('/admin/orders') ? 'active' : ''}`}>
-          <ShoppingCart size={20} />
-          <span>Sales</span>
-        </Link>
+
+        {/* Center raised FAB button */}
+        <div className="bottom-nav-center-slot">
+          <Link to="/admin/orders" className={`bottom-nav-fab ${location.pathname.startsWith('/admin/orders') ? 'active' : ''}`}>
+            <ShoppingCart size={26} />
+            <span>Sales</span>
+          </Link>
+        </div>
+
+        {/* Right side: 2 links */}
         <Link to="/admin/receipts" className={`bottom-nav-link ${location.pathname.startsWith('/admin/receipts') ? 'active' : ''}`}>
-          <Receipt size={20} />
+          <ReceiptCedi size={22} />
           <span>Receipts</span>
         </Link>
         <Link to="/admin/inventory" className={`bottom-nav-link ${location.pathname.startsWith('/admin/inventory') ? 'active' : ''}`}>
-          <BarChart3 size={20} />
+          <BarChart3 size={22} />
           <span>Health</span>
-        </Link>
-        <Link to="/auth" className="bottom-nav-link logout-danger">
-          <LogOut size={20} />
-          <span>Exit</span>
         </Link>
       </nav>
     </div>
   );
 };
 
-const DashboardOverview = ({ products, orders }) => {
+const DashboardOverview = ({ products, orders, user }) => {
   const navigate = useNavigate();
   const pendingCount = orders.filter(o => o.status === 'Pending' || o.status === 'Processing').length;
-  const lowStock = products.filter(p => p.stock <= 3).length;
+  const lowStockThreshold = 5;
+  const lowStock = products.filter(p => p.stock <= lowStockThreshold).length;
   const totalSales = orders.reduce((sum, o) => sum + (o.total || 0), 0);
+
+  // Pagination for Recent Orders
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentOrders = orders.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(orders.length / itemsPerPage);
 
   return (
     <div className="dashboard-view fade-in">
       <div className="welcome-banner reveal active">
         <div className="welcome-content">
-          <h2 className="serif">Welcome Back, Admin!</h2>
+          <h2 className="serif">Welcome Back, {
+            user?.name && user.name !== 'Vision Admin' && user.name !== 'Admin'
+              ? user.name.split(' ')[0]
+              : 'Florence'
+          }!</h2>
           <p>The vision of luxury continues. Here is a summary of your performance today.</p>
         </div>
         <div className="welcome-decor">
@@ -1766,6 +1942,7 @@ const DashboardOverview = ({ products, orders }) => {
             <table className="admin-table">
               <thead>
                 <tr>
+                  <th style={{ width: '40px' }}>#</th>
                   <th>Order ID</th>
                   <th>Customer</th>
                   <th>Total</th>
@@ -1773,9 +1950,10 @@ const DashboardOverview = ({ products, orders }) => {
                 </tr>
               </thead>
               <tbody>
-                {orders.slice(0, 5).map((order) => (
-                  <tr key={order.id}>
-                    <td data-label="Order ID" style={{ fontWeight: 700 }}>#{order.id}</td>
+                {currentOrders.map((order, index) => (
+                  <tr key={order._id || order.id}>
+                    <td data-label="#">{indexOfFirstItem + index + 1}</td>
+                    <td data-label="Order ID" style={{ fontWeight: 700 }}>#{order.orderId || order._id}</td>
                     <td data-label="Customer">{order.customer}</td>
                     <td data-label="Total" style={{ fontWeight: 600 }}>GH₵{order.total}</td>
                     <td data-label="Status"><span className={`badge badge-${order.status.toLowerCase()}`}>{order.status}</span></td>
@@ -1784,15 +1962,24 @@ const DashboardOverview = ({ products, orders }) => {
               </tbody>
             </table>
           </div>
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="pagination-wrapper" style={{ padding: '1rem', display: 'flex', justifyContent: 'center', gap: '0.5rem', borderTop: '1px solid #f1f5f9' }}>
+              <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="pagination-btn">Prev</button>
+              <span style={{ alignSelf: 'center', fontSize: '0.8rem', fontWeight: 600 }}>{currentPage} / {totalPages}</span>
+              <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="pagination-btn">Next</button>
+            </div>
+          )}
         </div>
 
         <div className="admin-card">
           <div className="card-header">
             <h2>Inventory Check</h2>
+            <Link to="/admin/inventory" style={{ fontSize: '0.8rem', color: '#008080', fontWeight: 700 }}>View Full Health</Link>
           </div>
           <div className="inventory-alerts-list" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {products.filter(p => p.stock <= 5).map((prod, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem', background: prod.stock <= 2 ? '#fff5f5' : '#fffbeb', borderRadius: '16px', border: `1px solid ${prod.stock <= 2 ? '#fee2e2' : '#fef3c7'}` }}>
+            {products.filter(p => p.stock <= lowStockThreshold).slice(0, 8).map((prod, i) => (
+              <div key={prod._id || i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem', background: prod.stock <= 2 ? '#fff5f5' : '#fffbeb', borderRadius: '16px', border: `1px solid ${prod.stock <= 2 ? '#fee2e2' : '#fef3c7'}` }}>
                 <div>
                   <h4 style={{ fontSize: '0.9rem', marginBottom: '0.25rem' }}>{prod.name}</h4>
                   <span style={{ fontSize: '0.75rem', color: prod.stock <= 2 ? '#991b1b' : '#92400e', fontWeight: 800 }}>{prod.stock} items left</span>
@@ -1807,27 +1994,91 @@ const DashboardOverview = ({ products, orders }) => {
   );
 };
 
-const AdminProducts = ({ products, categories, deleteProduct, addProduct }) => {
+const AdminProducts = ({ products, categories, deleteProduct, addProduct, updateProduct }) => {
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Pagination & Sorting (Newest First)
+  const sortedProducts = [...products].sort((a, b) => {
+    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return dateB - dateA;
+  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = sortedProducts.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(products.length / itemsPerPage);
 
   useEffect(() => {
     if (showModal) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = 'auto';
     return () => { document.body.style.overflow = 'auto'; };
   }, [showModal]);
+
   const [newProd, setNewProd] = useState({
     name: '',
     price: '',
+    discountPrice: '',
     stock: '',
     category: 'Luxury',
     description: '',
+    comesWithPouch: false,
     images: []
   });
 
-  const handleImageChange = (e) => {
+  const handleEdit = (prod) => {
+    setEditingId(prod._id);
+    setNewProd({
+      name: prod.name || '',
+      price: prod.price || '',
+      discountPrice: prod.discountPrice || '',
+      stock: prod.stock || '',
+      category: prod.category || 'Luxury',
+      description: prod.description || '',
+      comesWithPouch: !!prod.comesWithPouch,
+      images: prod.images || (prod.image ? [prod.image] : [])
+    });
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingId(null);
+    setNewProd({ name: '', price: '', discountPrice: '', stock: '', category: 'Luxury', description: '', comesWithPouch: false, images: [] });
+  };
+
+  const handleImageChange = async (e) => {
     const files = Array.from(e.target.files);
-    const fileUrls = files.map(file => URL.createObjectURL(file));
-    setNewProd({ ...newProd, images: [...newProd.images, ...fileUrls] });
+    if (!files.length) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    files.forEach(f => formData.append('images', f));
+
+    try {
+      const token = localStorage.getItem('visionToken');
+      const res = await fetch('http://localhost:5000/api/upload', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setNewProd(prev => ({ ...prev, images: [...prev.images, ...data.urls] }));
+      } else {
+        Swal.fire('Media Error', data.message || 'Image upload failed.', 'error');
+      }
+    } catch (err) {
+      console.error('Upload Error:', err);
+      Swal.fire('Network Error', 'Image upload failed due to network issue.', 'error');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const removeImage = (index) => {
@@ -1835,17 +2086,49 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct }) => {
     setNewProd({ ...newProd, images: updatedImages });
   };
 
-  const handleSubmit = (e) => {
+  const handleSoldOut = async (prod) => {
+    const isSoldOut = prod.status === 'Sold Out' || prod.stock === 0 || !!prod.soldOutAt;
+
+    const result = await Swal.fire({
+      title: isSoldOut ? 'Restock Product?' : 'Mark as Sold Out?',
+      text: isSoldOut ? "This will make the product active again." : "This will mark it as Sold Out and hide it from the shop after 3 days.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#008080',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Yes, proceed'
+    });
+
+    if (result.isConfirmed) {
+      if (isSoldOut) {
+        await updateProduct(prod._id || prod.id, { soldOutAt: null, status: 'Active', stock: Math.max(1, prod.stock) });
+      } else {
+        await updateProduct(prod._id || prod.id, { soldOutAt: new Date().toISOString(), status: 'Sold Out', stock: 0 });
+      }
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    addProduct({
+    const prodData = {
       ...newProd,
       price: parseFloat(newProd.price),
+      discountPrice: newProd.discountPrice ? parseFloat(newProd.discountPrice) : null,
       stock: parseInt(newProd.stock),
       sizes: ['M', 'L'],
       image: newProd.images[0] || '/midnight.png'
-    });
-    setShowModal(false);
-    setNewProd({ name: '', price: '', stock: '', category: 'Luxury', description: '', images: [] });
+    };
+
+    let success = false;
+    if (editingId) {
+      success = await updateProduct(editingId, prodData);
+    } else {
+      success = await addProduct(prodData);
+    }
+
+    if (success) {
+      closeModal();
+    }
   };
 
   return (
@@ -1856,22 +2139,22 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct }) => {
           <p>Displaying all {products.length} products</p>
         </div>
         <div className="header-actions">
-          <button onClick={() => setShowModal(true)} className="cta-button-premium" style={{ padding: '0.8rem 1.5rem', fontSize: '0.75rem', borderRadius: '12px' }}>
+          <button onClick={() => { setEditingId(null); setShowModal(true); }} className="cta-button-premium" style={{ padding: '0.8rem 1.5rem', fontSize: '0.75rem', borderRadius: '12px' }}>
             <Plus size={16} /> Add Entry
           </button>
         </div>
       </header>
 
       {showModal && (
-        <div className="admin-modal-overlay" onClick={() => setShowModal(false)}>
+        <div className="admin-modal-overlay" onClick={closeModal}>
           <div className="admin-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-pull-handle"></div>
             <div className="modal-header-premium">
               <div>
-                <h2 className="serif" style={{ fontSize: '1.6rem', margin: 0, letterSpacing: '0.01em' }}>Add New Product</h2>
-                <p style={{ margin: '0.35rem 0 0', opacity: 0.85, fontSize: '0.85rem' }}>Define the features and essence of your next luxury item.</p>
+                <h2 className="serif">{editingId ? 'Edit Product' : 'Add New Product'}</h2>
+                <p>{editingId ? 'Refine the essence of this luxury item.' : 'Define the features and essence of your next luxury item.'}</p>
               </div>
-              <button onClick={() => setShowModal(false)} className="sidebar-minimize-toggle">
+              <button onClick={closeModal} className="sidebar-minimize-toggle">
                 <X size={20} strokeWidth={2} />
               </button>
             </div>
@@ -1879,16 +2162,19 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct }) => {
             <form onSubmit={handleSubmit} className="admin-modal-form">
               <div className="modal-content-scroll">
                 <div className="form-grid-2">
-                  {/* Left Column: Logistics */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     <div className="form-group-premium">
                       <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.9rem', fontWeight: 700, color: '#334155' }}>Product Identity</label>
                       <input type="text" required placeholder="name" value={newProd.name} onChange={e => setNewProd({ ...newProd, name: e.target.value })} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '1rem' }} />
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.25rem' }}>
                       <div>
                         <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.9rem', fontWeight: 700, color: '#334155' }}>Price (GH₵)</label>
                         <input type="number" required placeholder="0.00" value={newProd.price} onChange={e => setNewProd({ ...newProd, price: e.target.value })} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '1rem' }} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.9rem', fontWeight: 700, color: '#334155' }}>Promo (Opt)</label>
+                        <input type="number" placeholder="Discount Price" value={newProd.discountPrice} onChange={e => setNewProd({ ...newProd, discountPrice: e.target.value })} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '1rem' }} />
                       </div>
                       <div>
                         <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.9rem', fontWeight: 700, color: '#334155' }}>Initial Stock</label>
@@ -1907,48 +2193,58 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct }) => {
                       <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.8rem', fontWeight: 700, color: '#334155' }}>Product Soul (Description)</label>
                       <textarea rows="5" placeholder="Narrate the story..." value={newProd.description} onChange={e => setNewProd({ ...newProd, description: e.target.value })} style={{ width: '100%', padding: '1.1rem', borderRadius: '16px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '1rem', resize: 'none' }}></textarea>
                     </div>
+                    <div className="form-group-premium" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                      <input type="checkbox" id="pouch-check" checked={newProd.comesWithPouch} onChange={e => setNewProd({ ...newProd, comesWithPouch: e.target.checked })} style={{ width: '1.2rem', height: '1.2rem', cursor: 'pointer', accentColor: '#008080' }} />
+                      <label htmlFor="pouch-check" style={{ fontSize: '0.9rem', fontWeight: 700, color: '#334155', cursor: 'pointer', margin: 0 }}>Include Vision Spa Protective Pouch?</label>
+                    </div>
                   </div>
 
-                  {/* Right Column: Media */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     <div className="form-group-premium" style={{ marginBottom: '1rem' }}>
                       <label style={{ display: 'block', marginBottom: '0.8rem', fontSize: '0.9rem', fontWeight: 700, color: '#313e50' }}>Catalogue Imagery</label>
-                      <div className="media-upload-area" onClick={() => document.getElementById('image-upload').click()}>
+                      <div className="media-upload-area" onClick={() => !isUploading && document.getElementById('image-upload').click()} style={{ opacity: isUploading ? 0.6 : 1, cursor: isUploading ? 'wait' : 'pointer' }}>
                         <Upload size={32} color="#94a3b8" style={{ marginBottom: '1rem' }} />
-                        <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Click to import high-res media</p>
-                        <input id="image-upload" type="file" multiple hidden onChange={handleImageChange} />
+                        <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>
+                          {isUploading ? 'Uploading to cloud...' : 'Click to import high-res media'}
+                        </p>
+                        <input id="image-upload" type="file" multiple accept="image/*" hidden onChange={handleImageChange} disabled={isUploading} />
                       </div>
                     </div>
 
                     <div className="admin-images-grid">
                       {newProd.images.map((img, i) => (
                         <div key={i} style={{ position: 'relative', height: '80px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-                          <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img src={img && !img.startsWith('blob:') ? img : '/midnight.png'} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           <button type="button" onClick={() => removeImage(i)} style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(239, 68, 68, 0.9)', color: 'white', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none' }}>
                             <X size={10} />
                           </button>
                         </div>
                       ))}
                     </div>
-
-                    <div style={{ marginTop: 'auto', padding: '1.25rem', background: '#f0fdf4', borderRadius: '20px', border: '1px solid #dcfce7' }}>
-                      <div style={{ display: 'flex', gap: '1rem' }}>
-                        <Shield size={20} color="#166534" />
-                        <p style={{ margin: 0, fontSize: '0.8rem', color: '#166534', lineHeight: 1.5 }}>
-                          Images are reviewed for high-end fidelity.
-                        </p>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
 
               <div className="modal-footer-premium">
-                <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '1.1rem', borderRadius: '16px', fontSize: '1rem', fontWeight: 600, background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                  <X size={18} /> Close Window
+                <button type="button" onClick={closeModal} style={{ flex: 1, padding: '1.1rem', borderRadius: '16px', fontSize: '1rem', fontWeight: 600, background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                  <X size={18} /> Cancel
                 </button>
-                <button type="submit" className="cta-button-premium shadowed" style={{ flex: 2, padding: '1.1rem', borderRadius: '16px', fontSize: '1rem', fontWeight: 800, background: 'var(--admin-sidebar-bg)', color: 'white' }}>
-                  Finalize & Publish Product
+                <button
+                  type="submit"
+                  disabled={isUploading}
+                  className="cta-button-premium shadowed"
+                  style={{
+                    flex: 2,
+                    padding: '1.1rem',
+                    borderRadius: '16px',
+                    fontSize: '1rem',
+                    fontWeight: 800,
+                    background: isUploading ? '#94a3b8' : 'var(--admin-sidebar-bg)',
+                    color: 'white',
+                    cursor: isUploading ? 'wait' : 'pointer',
+                    opacity: isUploading ? 0.7 : 1
+                  }}>
+                  {isUploading ? 'Uploading Media...' : editingId ? 'Save Changes' : 'Finalize & Publish Product'}
                 </button>
               </div>
             </form>
@@ -1961,6 +2257,7 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct }) => {
           <table className="admin-table">
             <thead>
               <tr>
+                <th style={{ width: '50px' }}>#</th>
                 <th>Product</th>
                 <th>Category</th>
                 <th>Price</th>
@@ -1970,36 +2267,209 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct }) => {
               </tr>
             </thead>
             <tbody>
-              {products.map((prod) => (
-                <tr key={prod.id}>
-                  <td data-label="Product">
-                    <div className="flex items-center">
-                      <img src={prod.image} className="table-product-img" alt="" style={{ width: '40px', height: '40px', borderRadius: '8px', marginRight: '1rem' }} />
-                      <div style={{ fontWeight: 700 }}>{prod.name}</div>
-                    </div>
-                  </td>
-                  <td data-label="Category">{prod.category}</td>
-                  <td data-label="Price" style={{ fontWeight: 600 }}>GH₵{prod.price}</td>
-                  <td data-label="Stock" style={{ fontWeight: 700, color: prod.stock <= 3 ? '#ef4444' : 'inherit' }}>{prod.stock}</td>
-                  <td data-label="Status"><span className="badge badge-paid">Active</span></td>
-                  <td data-label="Actions">
-                    <div className="flex justify-center gap-2">
-                      <button style={{ padding: '0.4rem', borderRadius: '6px', background: '#f1f5f9' }}><Edit3 size={14} /></button>
-                      <button onClick={() => deleteProduct(prod.id)} style={{ padding: '0.4rem', borderRadius: '6px', background: '#fee2e2', color: '#ef4444' }}><Trash size={14} /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {currentItems.map((prod, index) => {
+                const imgFallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(prod.name || 'P')}&background=0d2f2f&color=fff&size=100`;
+                return (
+                  <tr key={prod._id || prod.id || index}>
+                    <td data-label="#">{indexOfFirstItem + index + 1}</td>
+                    <td data-label="Product">
+                      <div className="flex items-center">
+                        <img
+                          src={prod.image && !prod.image.startsWith('blob:') ? prod.image : imgFallback}
+                          className="table-product-img"
+                          alt=""
+                          style={{ width: '40px', height: '40px', borderRadius: '8px', marginRight: '1rem' }}
+                        />
+                        <div style={{ fontWeight: 700 }}>
+                          {prod.name}
+                          {prod.comesWithPouch && <span style={{ marginLeft: '6px', color: '#008080', fontSize: '0.7rem' }} title="Includes Pouch"><CheckCircle size={12} style={{ display: 'inline', marginBottom: '2px' }} /></span>}
+                        </div>
+                      </div>
+                    </td>
+                    <td data-label="Category">{prod.category}</td>
+                    <td data-label="Price" style={{ fontWeight: 600 }}>GH₵{prod.price}</td>
+                    <td data-label="Stock" style={{ fontWeight: 700, color: prod.stock <= 3 ? '#ef4444' : 'inherit' }}>{prod.stock}</td>
+                    <td data-label="Status">
+                      {prod.status === 'Sold Out' || prod.stock === 0 || !!prod.soldOutAt ? (
+                        <span className="badge" style={{ backgroundColor: '#ef4444', color: '#fff', fontSize: '0.75rem', padding: '4px 8px', borderRadius: '4px' }}>Sold Out</span>
+                      ) : (
+                        <span className="badge badge-paid">Active</span>
+                      )}
+                    </td>
+                    <td data-label="Actions">
+                      <div className="flex justify-center gap-2">
+                        <button onClick={() => handleEdit(prod)} style={{ padding: '0.4rem', borderRadius: '6px', background: '#f1f5f9' }}><Edit3 size={14} /></button>
+                        <button onClick={() => handleSoldOut(prod)} title={prod.status === 'Sold Out' || prod.stock === 0 || !!prod.soldOutAt ? "Restock" : "Mark Sold Out"} style={{ padding: '0.4rem', borderRadius: '6px', background: '#fef3c7', color: '#d97706' }}><PackageX size={14} /></button>
+                        <button onClick={() => deleteProduct(prod._id || prod.id)} style={{ padding: '0.4rem', borderRadius: '6px', background: '#fee2e2', color: '#ef4444' }}><Trash size={14} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="pagination-wrapper" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9' }}>
+            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, products.length)} of {products.length} entries</span>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => prev - 1)}
+                className="pagination-btn"
+                style={{ opacity: currentPage === 1 ? 0.5 : 1 }}
+              >Previous</button>
+              <div style={{ display: 'flex', gap: '0.25rem' }}>
+                {[...Array(totalPages)].map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentPage(i + 1)}
+                    className={`pagination-btn ${currentPage === i + 1 ? 'active' : ''}`}
+                    style={{
+                      background: currentPage === i + 1 ? '#008080' : 'white',
+                      color: currentPage === i + 1 ? 'white' : '#1e293b',
+                      border: '1px solid #e2e8f0',
+                      padding: '0.4rem 0.8rem',
+                      borderRadius: '8px',
+                      fontWeight: 700,
+                      minWidth: '36px'
+                    }}
+                  >{i + 1}</button>
+                ))}
+              </div>
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                className="pagination-btn"
+                style={{ opacity: currentPage === totalPages ? 0.5 : 1 }}
+              >Next</button>
+            </div>
+          </div>
+        )}
       </div>
     </div >
   );
 };
 
-const AdminOrders = ({ orders, addOrder, products }) => {
+const ReceiptModal = ({ order, onClose }) => {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const receiptRef = React.useRef(null);
+
+  if (!order) return null;
+
+  const handleDownloadAndShare = async () => {
+    setIsGenerating(true);
+    const element = receiptRef.current;
+
+    const opt = {
+      margin: 10,
+      filename: `Receipt_RC-${order.orderId?.split('-')[1]?.toUpperCase() || order._id}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    try {
+      await html2pdf().set(opt).from(element).save();
+      // After download, open whatsapp sharing in a new tab
+      const waText = `Hello ${order.customer}, thank you for your authentic luxury purchase from Vision Spa! We've attached your digital receipt RC-${order.orderId?.split('-')[1]?.toUpperCase() || order._id} for your records. Let us know if you need anything else!`;
+      const waUrl = `https://wa.me/${order.phone ? order.phone.replace(/[^0-9]/g, '') : ''}?text=${encodeURIComponent(waText)}`;
+      window.open(waUrl, '_blank');
+    } catch (err) {
+      console.error(err);
+      Swal.fire('Error', 'Could not generate receipt PDF.', 'error');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <div className="admin-modal-overlay" onClick={onClose} style={{ zIndex: 1000001 }}>
+      <div className="admin-modal-card modal-narrow" onClick={(e) => e.stopPropagation()} style={{ background: '#fff', padding: '0', border: '1px solid #eee' }}>
+        <div ref={receiptRef} style={{ background: '#fff', padding: '2rem', position: 'relative', overflow: 'hidden' }}>
+          {/* Watermark Logo */}
+          <img src="/logo.jpeg" alt="Watermark" style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            opacity: 0.08,
+            width: '70%',
+            objectFit: 'contain',
+            pointerEvents: 'none',
+            zIndex: 0
+          }} />
+
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem', borderBottom: '2px solid #f8fafc', paddingBottom: '1.5rem' }}>
+              <h2 className="serif" style={{ color: '#008080', fontSize: '1.8rem', margin: '0' }}>Vision Spa</h2>
+              <p style={{ color: '#64748b', fontSize: '0.85rem', margin: '0.25rem 0' }}>The Essence of Luxury</p>
+              <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem' }}>
+                Receipt #: RC-{order.orderId?.split('-')[1]?.toUpperCase() || order._id} | Date: {order.date}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '2rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                <span style={{ color: '#64748b', fontWeight: 600 }}>Customer</span>
+                <span style={{ fontWeight: 700 }}>{order.customer}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                <span style={{ color: '#64748b', fontWeight: 600 }}>Location</span>
+                <span style={{ fontWeight: 700 }}>{order.location || 'N/A'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b', fontWeight: 600 }}>Payment Method</span>
+                <span style={{ fontWeight: 700, color: order.payment === 'Paid' ? '#16a34a' : '#d97706' }}>{order.payment}</span>
+              </div>
+            </div>
+
+            <div style={{ background: 'rgba(248, 250, 252, 0.8)', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem', marginBottom: '0.75rem', fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>
+                <span>Item</span>
+                <div style={{ display: 'flex', gap: '3rem' }}>
+                  <span>Qty</span>
+                  <span>Price</span>
+                </div>
+              </div>
+              {order.items.map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontWeight: 600 }}>
+                  <span style={{ fontSize: '0.9rem' }}>{item.name}</span>
+                  <div style={{ display: 'flex', gap: '3.5rem' }}>
+                    <span>x{item.qty}</span>
+                    <span>GH₵{(order.total / item.qty).toFixed(2)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '2px solid #008080', paddingTop: '1.5rem', marginTop: '1rem' }}>
+              <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1e293b' }}>Total Amount</span>
+              <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#008080' }}>GH₵{order.total.toFixed(2)}</span>
+            </div>
+
+            <div style={{ textAlign: 'center', marginTop: '2.5rem', color: '#64748b', fontSize: '0.8rem', fontStyle: 'italic' }}>
+              Thank you for choosing luxury. Visit again!
+            </div>
+          </div>
+        </div>
+
+        <div className="modal-footer-premium" style={{ marginTop: '0', background: '#f8fafc', borderTop: '1px solid #e2e8f0', borderBottomLeftRadius: '24px', borderBottomRightRadius: '24px', padding: '1.5rem' }}>
+          <button className="btn-cancel-premium" onClick={onClose} style={{ flex: 1 }}>Close</button>
+          <button className="cta-button-premium" style={{ flex: 1 }} onClick={handleDownloadAndShare} disabled={isGenerating}>
+            {isGenerating ? 'Processing...' : <><Download size={16} /> Save PDF & WA</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AdminOrders = ({ orders, addOrder, updateOrder, products }) => {
   const [showModal, setShowModal] = useState(false);
+  const [selectedReceipt, setSelectedReceipt] = useState(null);
 
   useEffect(() => {
     if (showModal) document.body.style.overflow = 'hidden';
@@ -2025,12 +2495,20 @@ const AdminOrders = ({ orders, addOrder, products }) => {
     setNewOrder({ customer: '', phone: '', location: '', productName: products[0]?.name || '', qty: 1, payment: 'Unpaid' });
   };
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = orders.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(orders.length / itemsPerPage);
+
   return (
     <div className="dashboard-view fade-in">
       <header className="admin-header">
         <div className="page-title">
-          <h1 className="serif">Orders Book</h1>
-          <p>Manual WhatsApp Sales Entry</p>
+          <h1 className="serif">Order Book</h1>
+          <p>Manual WhatsApp Sales Entry — {orders.length} Records</p>
         </div>
         <div className="header-actions">
           <button onClick={() => setShowModal(true)} className="cta-button-premium" style={{ padding: '0.8rem 1.5rem', fontSize: '0.75rem', borderRadius: '12px' }}>
@@ -2045,15 +2523,15 @@ const AdminOrders = ({ orders, addOrder, products }) => {
             <div className="modal-pull-handle"></div>
             <div className="modal-header-premium">
               <div>
-                <h2 className="serif" style={{ fontSize: '1.4rem', margin: 0, letterSpacing: '0.01em' }}>Record New Sale</h2>
-                <p style={{ margin: '0.25rem 0 0', opacity: 0.85, fontSize: '0.8rem' }}>Create a manual order for offline or WhatsApp sales.</p>
+                <h2 className="serif">Record New Sale</h2>
+                <p>Create a manual order for offline or WhatsApp sales.</p>
               </div>
               <button onClick={() => setShowModal(false)} className="sidebar-minimize-toggle">
                 <X size={18} strokeWidth={2} />
               </button>
             </div>
             <form onSubmit={handleSubmit} className="admin-modal-form">
-              <div className="modal-content-scroll" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div className="modal-content-scroll">
                 <div className="form-group">
                   <label>Customer Name</label>
                   <input type="text" required value={newOrder.customer} onChange={e => setNewOrder({ ...newOrder, customer: e.target.value })} />
@@ -2070,7 +2548,7 @@ const AdminOrders = ({ orders, addOrder, products }) => {
                   <label>Select Product</label>
                   <select value={newOrder.productName} onChange={e => setNewOrder({ ...newOrder, productName: e.target.value })}>
                     {products.length > 0 ? (
-                      products.map(p => <option key={p.id} value={p.name}>{p.name}</option>)
+                      products.map((p, idx) => <option key={p._id || p.id || idx} value={p.name}>{p.name}</option>)
                     ) : (
                       <option disabled>No products available</option>
                     )}
@@ -2108,6 +2586,7 @@ const AdminOrders = ({ orders, addOrder, products }) => {
           <table className="admin-table">
             <thead>
               <tr>
+                <th style={{ width: '50px' }}>#</th>
                 <th>Order ID</th>
                 <th>Customer</th>
                 <th>Location</th>
@@ -2118,9 +2597,10 @@ const AdminOrders = ({ orders, addOrder, products }) => {
               </tr>
             </thead>
             <tbody>
-              {orders.map((order) => (
-                <tr key={order.id}>
-                  <td data-label="Order ID" style={{ fontWeight: 700, color: '#008080' }}>#{order.id}</td>
+              {currentItems.map((order, index) => (
+                <tr key={order._id || order.id}>
+                  <td data-label="#">{indexOfFirstItem + index + 1}</td>
+                  <td data-label="Order ID" style={{ fontWeight: 700, color: '#008080' }}>#{order.orderId || order.id}</td>
                   <td data-label="Customer">
                     <div style={{ fontWeight: 600 }}>{order.customer}</div>
                     <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{order.phone}</div>
@@ -2130,25 +2610,69 @@ const AdminOrders = ({ orders, addOrder, products }) => {
                   <td data-label="Payment"><span className={`badge ${order.payment === 'Paid' ? 'badge-paid' : 'badge-unpaid'}`}>{order.payment}</span></td>
                   <td data-label="Status"><span className={`badge badge-${order.status.toLowerCase()}`}>{order.status}</span></td>
                   <td data-label="Actions" style={{ textAlign: 'center' }}>
-                    <button style={{ padding: '0.5rem', borderRadius: '8px', background: '#f8fafc' }} title="Generate Receipt"><Receipt size={16} /></button>
+                    <select
+                      value={order.status}
+                      onChange={(e) => updateOrder(order._id || order.id, { status: e.target.value })}
+                      style={{
+                        padding: '0.4rem 0.5rem',
+                        borderRadius: '8px',
+                        border: '1px solid #e2e8f0',
+                        background: '#f8fafc',
+                        fontWeight: 600,
+                        fontSize: '0.75rem',
+                        color: '#334155',
+                        cursor: 'pointer',
+                        outline: 'none'
+                      }}
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="Processing">Processing</option>
+                      <option value="Shipped">Shipped</option>
+                      <option value="Delivered">Delivered</option>
+                      <option value="Blocked">Blocked</option>
+                      <option value="Cancelled">Cancelled</option>
+                    </select>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="pagination-wrapper" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9' }}>
+            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, orders.length)} of {orders.length} lines</span>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="pagination-btn">Prev</button>
+              <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="pagination-btn">Next</button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {selectedReceipt && (
+        <ReceiptModal order={selectedReceipt} onClose={() => setSelectedReceipt(null)} />
+      )}
     </div>
   );
 };
 
 const AdminReceipts = ({ orders }) => {
+  const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = orders.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(orders.length / itemsPerPage);
+
   return (
     <div className="dashboard-view fade-in">
       <header className="admin-header">
         <div className="page-title">
-          <h1 className="serif">Sales Receipts</h1>
-          <p>Generate and manage transactional records</p>
+          <h1 className="serif">Generate Receipt</h1>
+          <p>Pick an order and tap to generate its receipt. {orders.length} order{orders.length !== 1 ? 's' : ''} available.</p>
         </div>
       </header>
 
@@ -2157,9 +2681,11 @@ const AdminReceipts = ({ orders }) => {
           <table className="admin-table">
             <thead>
               <tr>
+                <th style={{ width: '50px' }}>#</th>
                 <th>Receipt #</th>
                 <th>Customer</th>
                 <th>Product</th>
+                <th>Category</th>
                 <th>Qty</th>
                 <th>Total</th>
                 <th>Payment</th>
@@ -2168,11 +2694,13 @@ const AdminReceipts = ({ orders }) => {
               </tr>
             </thead>
             <tbody>
-              {orders.map(order => (
-                <tr key={order.id}>
-                  <td data-label="Receipt #" style={{ fontWeight: 700 }}>RC-{order.id.split('-')[1]}</td>
+              {currentItems.map((order, index) => (
+                <tr key={order._id || order.id}>
+                  <td data-label="#">{indexOfFirstItem + index + 1}</td>
+                  <td data-label="Receipt #" style={{ fontWeight: 700 }}>RC-{order.orderId?.split('-')[1] || order.id?.split('-')[1] || (order._id ? order._id.substring(order._id.length - 4) : '0000')}</td>
                   <td data-label="Customer">{order.customer}</td>
                   <td data-label="Product">{order.items[0]?.name || 'N/A'}</td>
+                  <td data-label="Category">{order.items[0]?.category || 'N/A'}</td>
                   <td data-label="Qty">{order.items[0]?.qty || '1'}</td>
                   <td data-label="Total">GH₵{order.total}</td>
                   <td data-label="Payment">
@@ -2189,17 +2717,47 @@ const AdminReceipts = ({ orders }) => {
                   </td>
                   <td data-label="Date">{order.date}</td>
                   <td data-label="Actions">
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button className="icon-btn" style={{ padding: '0.5rem', background: '#f1f5f9', borderRadius: '8px' }} title="Download PDF"><Download size={16} /></button>
-                      <button className="icon-btn" style={{ padding: '0.5rem', background: '#f1f5f9', borderRadius: '8px' }} title="View Details"><Eye size={16} /></button>
-                    </div>
+                    <button
+                      onClick={() => setSelectedReceipt(order)}
+                      style={{
+                        padding: '0.6rem 1rem',
+                        borderRadius: '10px',
+                        background: '#008080',
+                        color: 'white',
+                        border: 'none',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        width: 'max-content'
+                      }}
+                    >
+                      <ReceiptCedi size={14} />
+                      Generate Receipt
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="pagination-wrapper" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9' }}>
+            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Page {currentPage} of {totalPages}</span>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="pagination-btn">Back</button>
+              <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="pagination-btn">Next</button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {selectedReceipt && (
+        <ReceiptModal order={selectedReceipt} onClose={() => setSelectedReceipt(null)} />
+      )}
     </div>
   );
 };
@@ -2208,9 +2766,32 @@ const AdminReceipts = ({ orders }) => {
 const AdminCategories = ({ categories, setCategories }) => {
   const [newCat, setNewCat] = useState('');
 
-  const add = (e) => {
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentCategories = categories.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(categories.length / itemsPerPage);
+
+  const add = async (e) => {
     e.preventDefault();
-    if (newCat && !categories.includes(newCat)) setCategories([...categories, newCat]);
+    if (newCat && !categories.includes(newCat)) {
+      try {
+        const token = localStorage.getItem('visionToken');
+        const res = await fetch('http://localhost:5000/api/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ name: newCat.trim() })
+        });
+        const data = await res.json();
+        if (data.success) {
+          setCategories([...categories, data.data.name]);
+        }
+      } catch (err) {
+        setCategories([...categories, newCat.trim()]);
+      }
+    }
     setNewCat('');
   };
 
@@ -2219,37 +2800,69 @@ const AdminCategories = ({ categories, setCategories }) => {
       <header className="admin-header">
         <div className="page-title">
           <h1 className="serif">Category Manager</h1>
-          <p>Organize your collections and catalog groupings</p>
+          <p>Organize collections — {categories.length} Tiers</p>
         </div>
       </header>
 
-      <div className="dashboard-grid">
-        <div className="admin-card">
-          <form onSubmit={add} style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+      <div className="admin-card">
+        <div className="card-header" style={{ marginBottom: '2rem' }}>
+          <form onSubmit={add} style={{ display: 'flex', gap: '1rem', width: '100%' }}>
             <input type="text" placeholder="New Category Name" value={newCat} onChange={e => setNewCat(e.target.value)} style={{ flex: 1, padding: '0.8rem 1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }} />
             <button type="submit" className="cta-button-premium" style={{ borderRadius: '12px' }}><Plus size={20} /></button>
           </form>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {categories.map((cat, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '1.25rem 1.5rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-                <span style={{ fontWeight: 600 }}>{cat}</span>
-                <button onClick={() => setCategories(categories.filter(c => c !== cat))} style={{ color: '#ef4444' }}><Trash size={16} /></button>
-              </div>
-            ))}
-          </div>
         </div>
+
+        <div className="admin-table-container">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Category Title</th>
+                <th style={{ textAlign: 'right' }}>Management</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentCategories.map((cat, i) => (
+                <tr key={i}>
+                  <td style={{ fontWeight: 700 }}>{cat}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    <button onClick={() => setCategories(categories.filter(c => c !== cat))} style={{ color: '#ef4444', background: '#fee2e2', padding: '0.5rem', borderRadius: '8px' }}>
+                      <Trash size={16} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {totalPages > 1 && (
+          <div className="pagination-wrapper" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'center', borderTop: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="pagination-btn">Prev</button>
+              <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="pagination-btn">Next</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 const AdminInventory = ({ products }) => {
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = products.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(products.length / itemsPerPage);
+
   return (
     <div className="dashboard-view fade-in">
       <header className="admin-header">
         <div className="page-title">
           <h1 className="serif">Inventory Health</h1>
-          <p>Real-time stock tracking and replenishment alerts</p>
+          <p>Real-time stock tracking — {products.length} Items</p>
         </div>
       </header>
 
@@ -2265,8 +2878,8 @@ const AdminInventory = ({ products }) => {
               </tr>
             </thead>
             <tbody>
-              {products.map(p => (
-                <tr key={p.id}>
+              {currentItems.map(p => (
+                <tr key={p._id || p.id}>
                   <td data-label="Product"><div style={{ fontWeight: 700 }}>{p.name}</div></td>
                   <td data-label="Available Stock">{p.stock} units</td>
                   <td data-label="Safety Level">
@@ -2282,6 +2895,16 @@ const AdminInventory = ({ products }) => {
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="pagination-wrapper" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'center', borderTop: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="pagination-btn">Prev</button>
+              <span style={{ alignSelf: 'center', fontWeight: 600 }}>{currentPage} of {totalPages}</span>
+              <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="pagination-btn">Next</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2289,31 +2912,193 @@ const AdminInventory = ({ products }) => {
 
 
 const App = () => {
-  // --- ADMIN STATE ---
-  const [products, setProducts] = useState([
-    { id: 1, name: 'Midnight Artisan', category: 'Luxury', price: 170, stock: 15, sizes: ['M', 'L'], image: '/midnight.png' },
-    { id: 2, name: 'Elite Onyx', category: 'Luxury', price: 210, stock: 2, sizes: ['S', 'M', 'L'], image: '/hero1.png' },
-    { id: 3, name: 'Teal Horizon', category: 'Modern', price: 150, stock: 1, sizes: ['M'], image: '/women_elite.png' },
-  ]);
+  // --- ADMIN & AUTH STATE ---
+  const [products, setProducts] = useState(allProducts);
+  const [categories, setCategories] = useState(['Luxury', 'Elite', 'Men']);
+  const [orders, setOrders] = useState([]);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const [categories, setCategories] = useState(['Luxury', 'Modern', 'Elite', 'Casual']);
+  // Initial Data Fetching
+  useEffect(() => {
+    const initApp = async () => {
+      setLoading(true);
 
-  const [orders, setOrders] = useState([
-    { id: 'VS-101', customer: 'Florence Eshun', phone: '+233 55 273 9280', location: 'Accra, GH', items: [{ name: 'Midnight Artisan', qty: 1, size: 'M' }], total: 170, payment: 'Paid', status: 'Processing', date: 'Oct 24, 2024' }
-  ]);
+      // Load categories first
+      const catRes = await apiRequest('/categories');
+      if (catRes.success && catRes.data?.length > 0) {
+        setCategories([...new Set(catRes.data.map(c => c.name))]);
+      } else {
+        // Fallback default from derived static objects if needed
+        setCategories(['Luxury', 'Elite', 'Men']);
+      }
 
-  const addProduct = (newProduct) => setProducts([...products, { ...newProduct, id: Date.now() }]);
-  const updateProduct = (id, updated) => setProducts(products.map(p => p.id === id ? updated : p));
-  const deleteProduct = (id) => setProducts(products.filter(p => p.id !== id));
+      // Load public products
+      const prodRes = await apiRequest('/products');
+      if (prodRes.success && prodRes.data?.length > 0) {
+        setProducts(prev => {
+          const existingNames = new Set(prodRes.data.map(p => p.name));
+          const filteredStatic = prev.filter(p => !existingNames.has(p.name));
+          return [...filteredStatic, ...prodRes.data];
+        });
 
-  const addOrder = (newOrder) => {
-    const orderId = `VS-${Math.floor(Math.random() * 9000 + 1000)}`;
-    setOrders([{ ...newOrder, id: orderId, date: new Date().toLocaleDateString() }, ...orders]);
-    // Reduce stock
-    newOrder.items.forEach(item => {
-      setProducts(prev => prev.map(p => p.name === item.name ? { ...p, stock: Math.max(0, p.stock - item.qty) } : p));
-    });
+        const productCategories = prodRes.data.map(p => p.category).filter(Boolean);
+        setCategories(prev => [...new Set([...prev, ...productCategories])]);
+      }
+
+      // Verify Auth (Cookie-based)
+      const verifyRes = await apiRequest('/auth/me');
+      if (verifyRes.success) {
+        setUser(verifyRes.data);
+        const ordRes = await apiRequest('/orders');
+        if (ordRes.success) setOrders(ordRes.data);
+      }
+
+      setLoading(false);
+    };
+    initApp();
+  }, []); // Only on mount now
+
+  const handleLogin = (userData) => {
+    setUser(userData);
   };
+
+  const handleLogout = async () => {
+    const result = await Swal.fire({
+      title: 'Sign Out?',
+      text: "Are you sure you want to end your session?",
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#008080',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Yes, Sign Out',
+      background: '#fff',
+      color: '#1e293b'
+    });
+
+    if (result.isConfirmed) {
+      await apiRequest('/auth/logout'); // Clear cookie on backend
+      setUser(null);
+      Swal.fire({
+        title: 'Signed Out',
+        text: 'Come back soon!',
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false
+      });
+    }
+  };
+
+  const addProduct = async (newProduct) => {
+    const res = await apiRequest('/products', 'POST', newProduct, token);
+    if (res.success) {
+      setProducts(prev => [res.data, ...prev]);
+      Swal.fire({
+        title: 'Product Added!',
+        text: `${res.data.name} has been published to the catalog.`,
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false,
+        iconColor: '#008080'
+      });
+    }
+    return res.success;
+  };
+
+  const updateProduct = async (id, updated) => {
+    const res = await apiRequest(`/products/${id}`, 'PUT', updated, token);
+    if (res.success) {
+      setProducts(prev => prev.map(p => p._id === id ? res.data : p));
+      Swal.fire({
+        title: 'Updated!',
+        text: 'Product details have been synchronized.',
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false,
+        iconColor: '#008080'
+      });
+    }
+    return res.success;
+  };
+
+  const deleteProduct = async (id) => {
+    // Confirm before delete
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "This product will be permanently removed.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#008080',
+      cancelButtonColor: '#ef4444',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
+      const res = await apiRequest(`/products/${id}`, 'DELETE', null, token);
+      if (res.success) {
+        setProducts(prev => prev.filter(p => p._id !== id));
+        Swal.fire({
+          title: 'Deleted!',
+          text: 'The product has been removed.',
+          icon: 'success',
+          timer: 1500,
+          showConfirmButton: false
+        });
+      }
+      return res.success;
+    }
+    return false;
+  };
+
+  const addOrder = async (newOrder) => {
+    const res = await apiRequest('/orders', 'POST', newOrder); // Orders can be public
+    if (res.success) {
+      Swal.fire({
+        title: 'Sale Recorded!',
+        text: `Order ${res.data.orderId} has been successfully saved.`,
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false,
+        iconColor: '#008080'
+      });
+
+      if (token) setOrders(prev => [res.data, ...prev]); // Update admin list if logged in
+
+      // Update local product stocks to match server
+      if (res.data.items) {
+        res.data.items.forEach(item => {
+          setProducts(prev => prev.map(p => p.name === item.name ? { ...p, stock: Math.max(0, p.stock - item.qty) } : p));
+        });
+      }
+    }
+    return res.success;
+  };
+
+  const updateOrder = async (id, updated) => {
+    const res = await apiRequest(`/orders/${id}`, 'PUT', updated, token);
+    if (res.success) {
+      setOrders(prev => prev.map(o => o._id === id ? res.data : o));
+      Swal.fire({
+        title: 'Status Updated!',
+        text: `Order status has been updated successfully.`,
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false,
+        iconColor: '#008080'
+      });
+    } else {
+      Swal.fire('Error', res.message || 'Could not update order', 'error');
+    }
+    return res.success;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="loader-premium"></div>
+      </div>
+    );
+  }
 
   return (
     <CartProvider>
@@ -2322,12 +3107,33 @@ const App = () => {
           <div className="app">
             <Navbar />
             <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/shop" element={<ShopPage />} />
+              <Route path="/" element={<HomePage products={products} categories={categories} />} />
+              <Route path="/shop" element={<ShopPage products={products} categories={categories} />} />
               <Route path="/collections" element={<CollectionsPage />} />
               <Route path="/about" element={<AboutPage />} />
-              <Route path="/auth" element={<AuthPage />} />
-              <Route path="/admin/*" element={<AdminDashboard products={products} categories={categories} orders={orders} addProduct={addProduct} deleteProduct={deleteProduct} addOrder={addOrder} setCategories={setCategories} />} />
+              <Route path="/auth" element={<AuthPage onLogin={handleLogin} />} />
+              <Route
+                path="/admin/*"
+                element={
+                  token ? (
+                    <AdminDashboard
+                      products={products}
+                      categories={categories}
+                      orders={orders}
+                      addProduct={addProduct}
+                      updateProduct={updateProduct}
+                      deleteProduct={deleteProduct}
+                      addOrder={addOrder}
+                      updateOrder={updateOrder}
+                      setCategories={setCategories}
+                      user={user}
+                      onLogout={handleLogout}
+                    />
+                  ) : (
+                    <AuthPage onLogin={handleLogin} />
+                  )
+                }
+              />
             </Routes>
             <Footer />
             <SupportBot />

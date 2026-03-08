@@ -1,0 +1,95 @@
+const Admin = require('../models/Admin');
+const jwt = require('jsonwebtoken');
+
+// Generate Token and set cookie
+const sendTokenResponse = (admin, statusCode, res) => {
+    const token = jwt.sign({ id: admin._id }, process.env.JWT_SECRET, {
+        expiresIn: process.env.JWT_EXPIRE || '30d',
+    });
+
+    const options = {
+        expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'None' // Necessary for cross-site cookie if frontend/backend are on different domains
+    };
+
+    res.status(statusCode)
+        .cookie('token', token, options)
+        .json({
+            success: true,
+            _id: admin._id,
+            name: admin.name,
+            email: admin.email,
+            phone: admin.phone
+        });
+};
+
+// @desc    Login Admin
+// @route   POST /api/auth/login
+// @access  Public
+exports.login = async (req, res) => {
+    try {
+        const { identifier, password } = req.body;
+        console.log(`Login attempt for: ${identifier}`);
+
+        // Find admin by email OR phone
+        const admin = await Admin.findOne({
+            $or: [
+                { email: identifier?.toLowerCase() },
+                { phone: identifier }
+            ]
+        }).select('+password');
+
+        if (!admin) {
+            console.log(`Admin NOT found for identifier: ${identifier}`);
+            return res.status(401).json({ success: false, message: 'Invalid credentials. User not found.' });
+        }
+
+        // Check password
+        const isMatch = await admin.matchPassword(password);
+        console.log(`Password match result: ${isMatch}`);
+
+        if (!isMatch) {
+            return res.status(401).json({ success: false, message: 'Invalid credentials. Incorrect password.' });
+        }
+
+        sendTokenResponse(admin, 200, res);
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
+
+// @desc    Get Current Logged in Admin
+// @route   GET /api/auth/me
+// @access  Private
+exports.getMe = async (req, res) => {
+    try {
+        const admin = await Admin.findById(req.user.id);
+        if (!admin) {
+            return res.status(404).json({ success: false, message: 'Admin not found' });
+        }
+        res.status(200).json({
+            success: true,
+            data: admin,
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Logout Admin / Clear Cookie
+// @route   GET /api/auth/logout
+// @access  Private
+exports.logout = async (req, res) => {
+    res.cookie('token', 'none', {
+        expires: new Date(Date.now() + 10 * 1000),
+        httpOnly: true,
+    });
+
+    res.status(200).json({
+        success: true,
+        data: {},
+    });
+};
