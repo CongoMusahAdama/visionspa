@@ -5,7 +5,7 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const Admin = require('./models/Admin');
 const helmet = require('helmet');
-const mongoSanitize = require('express-mongo-sanitize');
+// express-mongo-sanitize removed — incompatible with Express v5 (req.query is read-only)
 const xss = require('xss-clean');
 const cookieParser = require('cookie-parser');
 
