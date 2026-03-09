@@ -2415,4 +2415,189 @@
     .product-name {
         font-size: 0.82rem !important;
     }
+
+    /* ── Mobile Checkout Styles ────────────────────────── */
+    .checkout-header {
+        margin-bottom: 2rem !important;
+        text-align: center;
+    }
+
+    .checkout-header h1 {
+        font-size: 2.2rem !important;
+        margin-bottom: 0.25rem !important;
+    }
+
+    .checkout-grid {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 2.5rem !important;
+    }
+
+    .checkout-form-column {
+        order: 1;
+    }
+
+    .order-summary-sidebar {
+        order: 2;
+    }
+
+    .order-summary-sidebar .glass {
+        padding: 1.5rem !important;
+        border-radius: 18px !important;
+        box-shadow: var(--mobile-shadow-soft) !important;
+    }
+
+    .order-summary-card {
+        padding: 1.5rem !important;
+        border-radius: 18px !important;
+    }
+
+    .form-section-title {
+        font-size: 1.4rem !important;
+        margin-bottom: 1.25rem !important;
+    }
+
+    .checkout-card {
+        padding: 1.5rem !important;
+        border-radius: 18px !important;
+    }
+
+    .payment-number {
+        font-size: 1.2rem !important;
+    }
+
+    .upload-placeholder {
+        padding: 2rem 1rem !important;
+    }
+
+    .summary-title {
+        font-size: 1.6rem !important;
+        margin-bottom: 1.5rem !important;
+    }
+
+    .summary-item-img {
+        width: 50px !important;
+        height: 50px !important;
+    }
+
+    .total-amount {
+        font-size: 1.4rem !important;
+    }
+
+    .guarantee-box {
+        margin-top: 2rem !important;
+        padding: 1rem !important;
+        gap: 0.75rem !important;
+    }
+
+    .guarantee-title {
+        font-size: 0.85rem !important;
+    }
+
+    .guarantee-desc {
+        font-size: 0.75rem !important;
+    }
+
+    .checkout-submit-btn {
+        margin-top: 2rem !important;
+        padding: 1rem !important;
+        font-size: 0.95rem !important;
+        border-radius: 12px !important;
+    }
+
+    .form-section h3 {
+        font-size: 1.25rem !important;
+        margin-bottom: 1.25rem !important;
+    }
+
+    .form-group-premium label {
+        font-size: 0.75rem !important;
+        margin-bottom: 0.4rem !important;
+    }
+
+    .form-group-premium input {
+        padding: 0.85rem !important;
+        font-size: 16px !important;
+        /* Prevent iOS zoom */
+        border-radius: 10px !important;
+    }
+
+    .payment-section {
+        padding: 1.5rem !important;
+        border-radius: 18px !important;
+    }
+
+    .payment-number-card {
+        padding: 0.85rem !important;
+    }
+
+    .payment-number-card p:nth-child(2) {
+        font-size: 1.1rem !important;
+    }
+
+    .checkout-page.section-padding {
+        padding-top: 5rem !important;
+        padding-bottom: 8rem !important;
+    }
+
+    /* Sticky Footer for Mobile Checkout */
+    .mobile-checkout-sticky-bar {
+        display: flex !important;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border-top: 1px solid rgba(0, 128, 128, 0.1);
+        padding: 1.25rem 1.5rem calc(env(safe-area-inset-bottom, 0px) + 1.25rem);
+        justify-content: space-between;
+        align-items: center;
+        z-index: 999;
+        box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.08);
+        animation: stickySlideUp 0.5s var(--mobile-smooth);
+    }
+
+    @keyframes stickySlideUp {
+        from {
+            transform: translateY(100%);
+        }
+
+        to {
+            transform: translateY(0);
+        }
+    }
+
+    .sticky-bar-info p {
+        font-size: 0.65rem !important;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #64748b;
+        margin-bottom: 0.2rem;
+        font-weight: 700;
+    }
+
+    .sticky-bar-info h3 {
+        font-size: 1.4rem !important;
+        color: var(--teal-primary);
+        font-weight: 900 !important;
+    }
+
+    .sticky-pay-btn {
+        background: var(--teal-primary);
+        color: white;
+        border: none;
+        padding: 0.85rem 2rem;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        box-shadow: 0 4px 15px rgba(0, 128, 128, 0.3);
+    }
+
+    .sticky-pay-btn:active {
+        transform: scale(0.95);
+    }
 }

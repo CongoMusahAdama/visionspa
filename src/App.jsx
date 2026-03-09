@@ -650,6 +650,10 @@ const CartDrawer = () => {
             <p className="cart-checkout-label">Send order directly to:</p>
 
             <div className="cart-checkout-btns">
+              <Link to="/checkout" className="checkout-social-btn" style={{ background: '#008080', color: 'white', border: 'none' }} onClick={() => setIsCartOpen(false)}>
+                <CheckCircle size={20} />
+                <span>Secure Checkout</span>
+              </Link>
               <a href={waUrl} target="_blank" rel="noreferrer" className="checkout-social-btn checkout-whatsapp" onClick={() => setTimeout(clearCart, 1000)}>
                 <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>
                 <span>WhatsApp</span>
@@ -1777,7 +1781,7 @@ const AuthPage = ({ onLogin }) => {
 
 // --- ADMIN DASHBOARD COMPONENTS ---
 
-const AdminDashboard = ({ products, categories, orders, addProduct, updateProduct, deleteProduct, addOrder, updateOrder, setCategories, user, onLogout }) => {
+const AdminDashboard = ({ products, categories, orders, fetchOrders, addProduct, updateProduct, deleteProduct, addOrder, updateOrder, setCategories, user, onLogout }) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const location = useLocation();
@@ -1880,8 +1884,8 @@ const AdminDashboard = ({ products, categories, orders, addProduct, updateProduc
         <Routes>
           <Route path="/" element={<DashboardOverview products={products} orders={orders} user={user} />} />
           <Route path="/products" element={<AdminProducts products={products} categories={categories} deleteProduct={deleteProduct} addProduct={addProduct} updateProduct={updateProduct} />} />
-          <Route path="/orders" element={<AdminOrders orders={orders} addOrder={addOrder} updateOrder={updateOrder} products={products} />} />
-          <Route path="/receipts" element={<AdminReceipts orders={orders} />} />
+          <Route path="/orders" element={<AdminOrders orders={orders} fetchOrders={fetchOrders} addOrder={addOrder} updateOrder={updateOrder} products={products} />} />
+          <Route path="/receipts" element={<AdminReceipts orders={orders} updateOrder={updateOrder} />} />
           <Route path="/categories" element={<AdminCategories categories={categories} setCategories={setCategories} />} />
           <Route path="/inventory" element={<AdminInventory products={products} />} />
           {/* Default to Overview */}
@@ -2625,7 +2629,25 @@ const AdminOrders = ({ orders, addOrder, updateOrder, products }) => {
           <h1 className="serif">Order Book</h1>
           <p>Manual WhatsApp Sales Entry — {orders.length} Records</p>
         </div>
-        <div className="header-actions">
+        <div className="header-actions" style={{ display: 'flex', gap: '1rem' }}>
+          <button
+            onClick={() => {
+              fetchOrders();
+              Swal.fire({
+                title: 'Syncing...',
+                text: 'Fetching latest orders from server.',
+                icon: 'info',
+                timer: 1000,
+                showConfirmButton: false,
+                toast: true,
+                position: 'top-end'
+              });
+            }}
+            className="cta-button-premium"
+            style={{ padding: '0.8rem 1.2rem', fontSize: '0.75rem', borderRadius: '12px', background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0' }}
+          >
+            <Sparkles size={16} /> Check for New Orders
+          </button>
           <button onClick={() => setShowModal(true)} className="cta-button-premium" style={{ padding: '0.8rem 1.5rem', fontSize: '0.75rem', borderRadius: '12px' }}>
             <Plus size={16} /> Record Sale
           </button>
@@ -2704,6 +2726,7 @@ const AdminOrders = ({ orders, addOrder, updateOrder, products }) => {
                 <th style={{ width: '50px' }}>#</th>
                 <th>Order ID</th>
                 <th>Customer</th>
+                <th>Proof</th>
                 <th>Location</th>
                 <th>Price</th>
                 <th>Payment</th>
@@ -2719,6 +2742,27 @@ const AdminOrders = ({ orders, addOrder, updateOrder, products }) => {
                   <td data-label="Customer">
                     <div style={{ fontWeight: 600 }}>{order.customer}</div>
                     <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{order.phone}</div>
+                  </td>
+                  <td data-label="Proof">
+                    {order.paymentScreenshot ? (
+                      <button
+                        className="btn-view-proof"
+                        onClick={() => {
+                          Swal.fire({
+                            title: 'Payment Screenshot',
+                            imageUrl: order.paymentScreenshot,
+                            imageAlt: 'Payment Proof',
+                            confirmButtonColor: '#008080',
+                            confirmButtonText: 'Great, Close'
+                          });
+                        }}
+                        style={{ background: '#f0fdf4', color: '#16a34a', border: '1px solid #dcfce7', padding: '0.4rem 0.8rem', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer' }}
+                      >
+                        <Eye size={14} style={{ display: 'inline', marginRight: '4px' }} /> View
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>None</span>
+                    )}
                   </td>
                   <td data-label="Location" style={{ fontSize: '0.85rem' }}>{order.location || 'N/A'}</td>
                   <td data-label="Price" style={{ fontWeight: 700 }}>GH₵{order.total}</td>
@@ -3045,6 +3089,273 @@ const AdminInventory = ({ products }) => {
 };
 
 
+const CheckoutPage = ({ addOrder }) => {
+  const { cartItems, cartTotal, clearCart } = useCart();
+  const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [screenshotUrl, setScreenshotUrl] = useState(null);
+  const [formData, setFormData] = useState({
+    customer: '',
+    phone: '',
+    location: ''
+  });
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  if (cartItems.length === 0 && !isSubmitting) {
+    return (
+      <div className="section-padding container center-text">
+        <h2 className="serif">Your Bag is Empty</h2>
+        <p style={{ margin: '1rem 0 2rem' }}>You don't have any items in your bag to checkout.</p>
+        <Link to="/shop" className="cta-button-premium">Continue Shopping</Link>
+      </div>
+    );
+  }
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const form = new FormData();
+    form.append('screenshot', file);
+
+    try {
+      const res = await fetch(`${API_URL}/upload/screenshot`, {
+        method: 'POST',
+        body: form
+      });
+      const data = await res.json();
+      if (data.success) {
+        setScreenshotUrl(data.url);
+        Swal.fire({
+          title: 'Screenshot Uploaded',
+          text: 'Payment proof received.',
+          icon: 'success',
+          timer: 1500,
+          showConfirmButton: false,
+          iconColor: '#008080'
+        });
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (err) {
+      Swal.fire('Upload Failed', err.message || 'Image upload failed.', 'error');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!screenshotUrl) {
+      Swal.fire({
+        title: 'Payment Proof Required',
+        text: 'Please upload a screenshot of your payment to proceed.',
+        icon: 'warning',
+        confirmButtonColor: '#008080'
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    const orderData = {
+      customer: formData.customer,
+      phone: formData.phone,
+      location: formData.location,
+      items: cartItems.map(i => ({ name: i.name, qty: i.qty, size: i.size || 'M' })),
+      total: cartTotal,
+      paymentScreenshot: screenshotUrl,
+      paymentMethod: 'Direct Payment',
+      status: 'Pending'
+    };
+
+    const success = await addOrder(orderData);
+    if (success) {
+      clearCart();
+      Swal.fire({
+        title: 'Order Successful!',
+        text: 'Your order has been placed and is being reviewed.',
+        icon: 'success',
+        confirmButtonColor: '#008080'
+      }).then(() => {
+        navigate('/');
+      });
+    }
+    setIsSubmitting(false);
+  };
+
+  return (
+    <div className="checkout-page section-padding container">
+      <div className="reveal checkout-header">
+        <h1 className="serif">Secure Checkout</h1>
+        <p className="text-teal">Vision Spa Elite Delivery</p>
+      </div>
+
+      <div className="checkout-grid">
+        <div className="checkout-form-column">
+          <form onSubmit={handleSubmit} className="checkout-form">
+            <div className="form-section">
+              <h3 className="serif form-section-title">Customer Details</h3>
+              <div className="form-group-premium">
+                <label>Full Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Ama Serwaa"
+                  value={formData.customer}
+                  onChange={e => setFormData({ ...formData, customer: e.target.value })}
+                  className="checkout-input"
+                />
+              </div>
+              <div className="form-group-premium">
+                <label>WhatsApp Number</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="+233 55 555 5555"
+                  value={formData.phone}
+                  onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                  className="checkout-input"
+                />
+              </div>
+              <div className="form-group-premium">
+                <label>Delivery Location</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Accra, Osu / Digital Address"
+                  value={formData.location}
+                  onChange={e => setFormData({ ...formData, location: e.target.value })}
+                  className="checkout-input"
+                />
+              </div>
+            </div>
+
+            <div className="form-section payment-section checkout-card">
+              <h3 className="serif form-section-title">Payment Instructions</h3>
+              <div className="payment-instruction-box">
+                <p className="instruction-text">Please make a direct payment to the number below:</p>
+                <div className="payment-number-card">
+                  <div className="payment-number-info">
+                    <p className="payment-method-label">MoMo / Direct Pay</p>
+                    <p className="payment-number">0552739280</p>
+                    <p className="payment-acc-name">Account Name: <b>FLORENCE ESHUN</b></p>
+                    <p className="payment-warning">
+                      <AlertTriangle size={12} /> Confirm name before authorising payment
+                    </p>
+                  </div>
+                  <div className="payment-card-icon">
+                    <Shield size={20} color="#16a34a" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="screenshot-upload">
+                <label className="upload-label">Upload Payment Screenshot</label>
+                <div
+                  className="upload-placeholder"
+                  onClick={() => !isUploading && document.getElementById('screenshot').click()}
+                  style={{ background: screenshotUrl ? '#f0fdf4' : 'white' }}
+                >
+                  {isUploading ? (
+                    <p>Uploading...</p>
+                  ) : screenshotUrl ? (
+                    <div className="upload-success-content">
+                      <CheckCircle size={32} color="#16a34a" />
+                      <p className="success-text">Proof Received</p>
+                      <p className="change-text">Click to change</p>
+                    </div>
+                  ) : (
+                    <div className="upload-empty-content">
+                      <Upload size={32} color="#94a3b8" />
+                      <p>Tap to upload receipt screenshot</p>
+                    </div>
+                  )}
+                  <input type="file" id="screenshot" hidden accept="image/*" onChange={handleFileUpload} />
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSubmitting || isUploading}
+              className="cta-button-premium checkout-submit-btn"
+            >
+              {isSubmitting ? 'Processing Your Vision...' : 'Confirm & Place Order'}
+            </button>
+          </form>
+        </div>
+
+        <div className="order-summary-sidebar">
+          <div className="glass shadowed order-summary-card">
+            <h3 className="serif summary-title">Order Summary</h3>
+            <div className="cart-items-preview">
+              {cartItems.map(item => (
+                <div key={item.id} className="summary-item">
+                  <div className="summary-item-left">
+                    <img src={item.image} className="summary-item-img" />
+                    <div className="summary-item-info">
+                      <p className="summary-item-name">{item.name}</p>
+                      <p className="summary-item-qty">Qty: {item.qty}</p>
+                    </div>
+                  </div>
+                  <p className="summary-item-price">GH₵{(item.price * item.qty).toFixed(2)}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="summary-pricing">
+              <div className="summary-row">
+                <span>Subtotal</span>
+                <span>GH₵{cartTotal.toFixed(2)}</span>
+              </div>
+              <div className="summary-row">
+                <span>Delivery Fee</span>
+                <span className="free-tag">FREE</span>
+              </div>
+              <div className="summary-total-row">
+                <span className="total-label">Total To Pay</span>
+                <span className="total-amount">GH₵{cartTotal.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="guarantee-box">
+              <CheckCircle size={20} color="#16a34a" />
+              <div className="guarantee-text">
+                <p className="guarantee-title">Authentic Vision Guaranteed</p>
+                <p className="guarantee-desc">Secure payment direct to Vision Spa.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Sticky Total Bar */}
+        <div className="mobile-checkout-sticky-bar">
+          <div className="sticky-bar-info">
+            <p>Total to Pay</p>
+            <h3>GH₵{cartTotal.toFixed(2)}</h3>
+          </div>
+          <button
+            type="button"
+            className="sticky-pay-btn"
+            onClick={() => {
+              const el = document.querySelector('.checkout-submit-btn');
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }}
+          >
+            Pay Now
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
 const App = () => {
   // --- ADMIN & AUTH STATE ---
   const [products, setProducts] = useState(allProducts);
@@ -3052,6 +3363,12 @@ const App = () => {
   const [orders, setOrders] = useState([]);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const fetchOrders = async () => {
+    if (!user) return;
+    const ordRes = await apiRequest('/orders');
+    if (ordRes.success) setOrders(ordRes.data);
+  };
 
   // Initial Data Fetching
   useEffect(() => {
@@ -3061,9 +3378,9 @@ const App = () => {
       // Load categories first
       const catRes = await apiRequest('/categories');
       if (catRes.success && catRes.data?.length > 0) {
-        setCategories([...new Set(catRes.data.map(c => c.name))]);
+        const uniqueCats = [...new Set(catRes.data.map(c => c.name.trim()))];
+        setCategories(uniqueCats);
       } else {
-        // Fallback default from derived static objects if needed
         setCategories(['Luxury', 'Elite', 'Men']);
       }
 
@@ -3072,8 +3389,14 @@ const App = () => {
       if (prodRes.success && prodRes.data?.length > 0) {
         setProducts(prodRes.data);
 
-        const productCategories = prodRes.data.map(p => p.category).filter(Boolean);
-        setCategories(prev => [...new Set([...prev, ...productCategories])]);
+        // Deduplicate and merge categories from products
+        const productCategories = prodRes.data.map(p => p.category?.trim()).filter(Boolean);
+        setCategories(prev => {
+          const combined = [...prev, ...productCategories];
+          // Normalize to capitalized first letter, rest lowercase for comparison
+          const normalized = combined.map(c => c.charAt(0).toUpperCase() + c.slice(1).toLowerCase());
+          return [...new Set(normalized)];
+        });
       } else {
         setProducts([]);
       }
@@ -3089,7 +3412,18 @@ const App = () => {
       setLoading(false);
     };
     initApp();
-  }, []); // Only on mount now
+  }, []);
+
+  // Auto-refresh orders for admin every 30 seconds
+  useEffect(() => {
+    if (!user) return;
+
+    const interval = setInterval(() => {
+      fetchOrders();
+    }, 30000); // 30 seconds polling
+
+    return () => clearInterval(interval);
+  }, [user]);
 
   const handleLogin = (userData) => {
     if (userData.token) {
@@ -3198,7 +3532,10 @@ const App = () => {
         iconColor: '#008080'
       });
 
-      if (user) setOrders(prev => [res.data, ...prev]); // Update admin list if logged in
+      if (user) {
+        setOrders(prev => [res.data, ...prev]); // Update admin list if logged in
+        fetchOrders(); // Sync with server
+      }
 
       // Update local product stocks to match server
       if (res.data.items) {
@@ -3237,9 +3574,9 @@ const App = () => {
   }
 
   return (
-    <CartProvider>
-      <ModalProvider>
-        <Router>
+    <Router>
+      <CartProvider>
+        <ModalProvider>
           <div className="app">
             <Navbar user={user} />
             {user?.needsPasswordChange && <ForcePasswordChangeModal setUser={setUser} />}
@@ -3249,6 +3586,7 @@ const App = () => {
               <Route path="/collections" element={<CollectionsPage />} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/auth" element={<AuthPage onLogin={handleLogin} />} />
+              <Route path="/checkout" element={<CheckoutPage addOrder={addOrder} />} />
               <Route
                 path="/admin/*"
                 element={
@@ -3257,6 +3595,7 @@ const App = () => {
                       products={products}
                       categories={categories}
                       orders={orders}
+                      fetchOrders={fetchOrders}
                       addProduct={addProduct}
                       updateProduct={updateProduct}
                       deleteProduct={deleteProduct}
@@ -3275,9 +3614,9 @@ const App = () => {
             <Footer />
             <SupportBot />
           </div>
-        </Router>
-      </ModalProvider>
-    </CartProvider>
+        </ModalProvider>
+      </CartProvider>
+    </Router>
   );
 };
 

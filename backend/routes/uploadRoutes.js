@@ -26,4 +26,24 @@ router.post('/', protect, upload.array('images', 10), async (req, res) => {
     }
 });
 
+// @route   POST /api/upload/screenshot
+// @desc    Upload payment screenshot to Cloudinary (Public)
+// @access  Public
+router.post('/screenshot', upload.single('screenshot'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'No file uploaded.' });
+        }
+
+        res.status(200).json({
+            success: true,
+            url: req.file.path,
+            message: 'Screenshot uploaded successfully.'
+        });
+    } catch (error) {
+        console.error('Screenshot upload error:', error);
+        res.status(500).json({ success: false, message: 'Screenshot upload failed.', error: error.message });
+    }
+});
+
 module.exports = router;

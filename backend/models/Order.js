@@ -36,6 +36,14 @@ const OrderSchema = new mongoose.Schema({
         enum: ['Paid', 'Unpaid'],
         default: 'Unpaid'
     },
+    paymentScreenshot: {
+        type: String,
+        default: null
+    },
+    paymentMethod: {
+        type: String,
+        default: 'Direct Transfer'
+    },
     status: {
         type: String,
         enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Blocked'],
