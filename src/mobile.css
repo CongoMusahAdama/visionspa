@@ -1877,16 +1877,21 @@
         background: var(--charcoal);
         color: white;
         padding: 1.25rem;
-        border-radius: 16px;
         font-weight: 700;
         font-size: 1rem;
+    }
+
+    .mobile-menu-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 10000;
     }
 
     .mobile-sidebar-backdrop {
         position: fixed;
         inset: 0;
         background: rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(4px);
         z-index: 10000;
     }
 
@@ -2363,8 +2368,7 @@
         width: 100% !important;
         height: 100% !important;
         z-index: 19999 !important;
-        backdrop-filter: blur(8px) !important;
-        -webkit-backdrop-filter: blur(8px) !important;
+        background: rgba(0, 0, 0, 0.5) !important;
     }
 
     /* Prevent body scroll when modal is open */

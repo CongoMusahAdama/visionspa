@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext, createContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { ShoppingBag, Heart, User, Search, ArrowRight, Instagram, Facebook, Twitter, Shield, Globe, Award, Mail, Phone, MessageCircle, Headset, X, Quote, Plus, Minus, Trash2, CheckCircle, Send, Menu, LayoutGrid, List, LayoutDashboard, Package, Layers, ShoppingCart, BarChart3, Receipt, Settings, LogOut, Edit3, Trash, Download, Filter, Eye, MoreVertical, AlertTriangle, Sparkles, Upload, PackageX } from 'lucide-react';
+import { ShoppingBag, Heart, User, Search, ArrowRight, Instagram, Facebook, Twitter, Shield, Globe, Award, Mail, Phone, MessageCircle, Headset, X, Quote, Plus, Minus, Trash2, CheckCircle, Send, Menu, LayoutGrid, List, LayoutDashboard, Package, Layers, ShoppingCart, BarChart3, Receipt, Settings, LogOut, Edit3, Trash, Download, Filter, Eye, MoreVertical, AlertTriangle, Sparkles, Upload, PackageX, Zap, UploadCloud, Maximize, Users, Image as ImageIcon, Activity } from 'lucide-react';
 import './App.css';
 import './mobile.css';
 import './Dashboard.css';
@@ -25,12 +25,18 @@ const apiRequest = async (endpoint, method = 'GET', body = null) => {
 
   try {
     const res = await fetch(`${API_URL}${endpoint}`, config);
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`API Error (${endpoint}): ${res.status}`, errText);
+      return { success: false, message: `Server error: ${res.status}` };
+    }
     return await res.json();
   } catch (error) {
-    console.error(`API Error (${endpoint}):`, error);
-    return { success: false, message: 'Server connection failed' };
+    console.error(`Network Error (${endpoint}):`, error);
+    return { success: false, message: 'Network connection failed' };
   }
 };
+
 
 // --- CART CONTEXT ---
 const CartContext = createContext(null);
@@ -342,6 +348,8 @@ const Navbar = ({ user }) => {
               <Link to="/shop" className="nav-link">Shop</Link>
               <Link to="/collections" className="nav-link">Collections</Link>
               <Link to="/about" className="nav-link">About</Link>
+              <Link to="/gallery" className="nav-link">Gallery</Link>
+
             </nav>
           </div>
 
@@ -385,6 +393,8 @@ const Navbar = ({ user }) => {
           <Link to="/shop" className="mobile-nav-link" onClick={() => setIsMobileMenuOpen(false)}>Shop</Link>
           <Link to="/collections" className="mobile-nav-link" onClick={() => setIsMobileMenuOpen(false)}>Collections</Link>
           <Link to="/about" className="mobile-nav-link" onClick={() => setIsMobileMenuOpen(false)}>About</Link>
+          <Link to="/gallery" className="mobile-nav-link" onClick={() => setIsMobileMenuOpen(false)}>Gallery</Link>
+
           {user && (
             <Link to="/admin" className="mobile-nav-link" onClick={() => setIsMobileMenuOpen(false)} style={{ color: '#008080', fontWeight: 800 }}>Admin Dashboard</Link>
           )}
@@ -1196,7 +1206,86 @@ const CollectionsPage = () => {
   );
 };
 
+const GalleryPage = () => {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    fetchGallery();
+  }, []);
+
+  useEffect(() => {
+    if (items.length > 0) {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('active');
+          }
+        });
+      }, { threshold: 0.1 });
+
+      document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+      return () => observer.disconnect();
+    }
+  }, [items]);
+
+  const fetchGallery = async () => {
+    const res = await apiRequest('/gallery');
+    if (res.success) setItems(res.data);
+    setLoading(false);
+  };
+
+  return (
+    <div className="gallery-page">
+      <section className="about-hero" style={{ height: '55vh', background: 'linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url("/collectionhero.png") center/cover no-repeat' }}>
+        <div className="container center-text reveal">
+          <span style={{ textTransform: 'uppercase', letterSpacing: '0.5em', fontSize: '0.8rem', color: '#5ef0f0', fontWeight: 800 }}>Vision Spa Elite</span>
+          <h1 className="serif" style={{ fontSize: 'clamp(3rem, 10vw, 5rem)', marginTop: '0.5rem', color: 'white' }}>The Gallery</h1>
+          <p className="fade-in-delayed" style={{ color: 'rgba(255,255,255,0.8)', maxWidth: '600px', margin: '1rem auto 0', fontSize: '1rem' }}>
+            A curated visual journey through our most exquisite eyewear collections and the essence of luxury.
+          </p>
+        </div>
+      </section>
+
+      <section className="section-padding container">
+        {loading ? (
+          <div className="flex justify-center p-20"><div className="loader-premium"></div></div>
+        ) : items.length === 0 ? (
+          <div className="center-text p-20 reveal">
+            <h3 className="serif text-2xl" style={{ fontSize: '2rem', color: '#111' }}>Coming Soon</h3>
+            <p className="text-gray-500 mt-4">Florence is curating beautiful images for you.</p>
+          </div>
+        ) : (
+          <div className="gallery-grid-premium">
+            {items.map((item, idx) => (
+              <div key={item._id} className="gallery-card-premium reveal" style={{ transitionDelay: `${(idx % 3) * 0.15}s` }}>
+                <div className="gallery-image-wrapper">
+                  <img src={item.image} alt={item.title} className="gallery-img-lux" />
+                  <div className="gallery-overlay-lux">
+                    <Maximize size={24} className="zoom-icon" />
+                  </div>
+                </div>
+                <div className="gallery-content-lux">
+                  <h4 className="serif gallery-title-lux">{item.title || "The Vision Gallery"}</h4>
+                  <p className="gallery-desc-lux">{item.description || "Luxury eyewear redefined for the modern elite."}</p>
+                  <div className="gallery-footer-lux">
+                    <span className="gallery-date-lux">{new Date(item.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</span>
+                    <div className="gallery-line-lux"></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+};
+
+
 const ShopPage = ({ products = [], categories = [] }) => {
+
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('Recommended');
@@ -1781,7 +1870,8 @@ const AuthPage = ({ onLogin }) => {
 
 // --- ADMIN DASHBOARD COMPONENTS ---
 
-const AdminDashboard = ({ products, categories, orders, fetchOrders, addProduct, updateProduct, deleteProduct, addOrder, updateOrder, setCategories, user, onLogout }) => {
+const AdminDashboard = ({ products, categories, orders, totalVisits, fetchOrders, addProduct, updateProduct, deleteProduct, addOrder, updateOrder, setCategories, user, onLogout }) => {
+
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const location = useLocation();
@@ -1822,39 +1912,49 @@ const AdminDashboard = ({ products, categories, orders, fetchOrders, addProduct,
         </div>
 
         <nav className="sidebar-nav">
-          <Link to="/admin" className={`sidebar-link ${location.pathname === '/admin' ? 'active' : ''}`}>
+          <Link to="/admin" className={`sidebar-link ${location.pathname === '/admin' ? 'active' : ''}`} onClick={() => setIsMobileOpen(false)}>
             <LayoutDashboard size={18} />
             <span className="sidebar-text">Dashboard</span>
           </Link>
-          <Link to="/admin/products" className={`sidebar-link ${location.pathname.startsWith('/admin/products') ? 'active' : ''}`}>
+          <Link to="/admin/products" className={`sidebar-link ${location.pathname.startsWith('/admin/products') ? 'active' : ''}`} onClick={() => setIsMobileOpen(false)}>
             <Package size={18} />
             <span className="sidebar-text">Products</span>
           </Link>
-          <Link to="/admin/categories" className={`sidebar-link ${location.pathname.startsWith('/admin/categories') ? 'active' : ''}`}>
+          <Link to="/admin/categories" className={`sidebar-link ${location.pathname.startsWith('/admin/categories') ? 'active' : ''}`} onClick={() => setIsMobileOpen(false)}>
             <Layers size={18} />
             <span className="sidebar-text">Categories</span>
           </Link>
-          <Link to="/admin/orders" className={`sidebar-link ${location.pathname.startsWith('/admin/orders') ? 'active' : ''}`}>
+          <Link to="/admin/orders" className={`sidebar-link ${location.pathname.startsWith('/admin/orders') ? 'active' : ''}`} onClick={() => setIsMobileOpen(false)}>
             <ShoppingCart size={18} />
             <span className="sidebar-text">Orders</span>
           </Link>
-          <Link to="/admin/inventory" className={`sidebar-link ${location.pathname.startsWith('/admin/inventory') ? 'active' : ''}`}>
+          <Link to="/admin/inventory" className={`sidebar-link ${location.pathname.startsWith('/admin/inventory') ? 'active' : ''}`} onClick={() => setIsMobileOpen(false)}>
             <BarChart3 size={18} />
             <span className="sidebar-text">Inventory</span>
           </Link>
-          <Link to="/admin/receipts" className={`sidebar-link ${location.pathname.startsWith('/admin/receipts') ? 'active' : ''}`}>
+          <Link to="/admin/gallery" className={`sidebar-link ${location.pathname.startsWith('/admin/gallery') ? 'active' : ''}`} onClick={() => setIsMobileOpen(false)}>
+            <ImageIcon size={18} />
+            <span className="sidebar-text">Gallery</span>
+          </Link>
+          <Link to="/admin/stats" className={`sidebar-link ${location.pathname.startsWith('/admin/stats') ? 'active' : ''}`} onClick={() => setIsMobileOpen(false)}>
+            <Activity size={18} />
+            <span className="sidebar-text">Analytics</span>
+          </Link>
+
+          <Link to="/admin/receipts" className={`sidebar-link ${location.pathname.startsWith('/admin/receipts') ? 'active' : ''}`} onClick={() => setIsMobileOpen(false)}>
             <ReceiptCedi size={18} />
             <span className="sidebar-text">Receipts</span>
           </Link>
           <div className="sidebar-divider" style={{ margin: '1rem 0', height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
-          <Link to="/" className="sidebar-link">
+          <Link to="/" className="sidebar-link" onClick={() => setIsMobileOpen(false)}>
             <Globe size={18} />
             <span className="sidebar-text">View Website</span>
           </Link>
-          <Link to="/shop" className="sidebar-link">
+          <Link to="/shop" className="sidebar-link" onClick={() => setIsMobileOpen(false)}>
             <ShoppingBag size={18} />
             <span className="sidebar-text">Go to Shop</span>
           </Link>
+
         </nav>
 
         <div className="sidebar-footer">
@@ -1881,13 +1981,26 @@ const AdminDashboard = ({ products, categories, orders, fetchOrders, addProduct,
           </div>
         </div>
 
+        {isMobileOpen && (
+          <div
+            className="mobile-menu-backdrop"
+            style={{ zIndex: 1500 }}
+            onClick={() => setIsMobileOpen(false)}
+          />
+        )}
+
         <Routes>
-          <Route path="/" element={<DashboardOverview products={products} orders={orders} user={user} />} />
+
+          <Route path="/" element={<DashboardOverview products={products} orders={orders} totalVisits={totalVisits} user={user} />} />
+
           <Route path="/products" element={<AdminProducts products={products} categories={categories} deleteProduct={deleteProduct} addProduct={addProduct} updateProduct={updateProduct} />} />
           <Route path="/orders" element={<AdminOrders orders={orders} fetchOrders={fetchOrders} addOrder={addOrder} updateOrder={updateOrder} products={products} />} />
           <Route path="/receipts" element={<AdminReceipts orders={orders} updateOrder={updateOrder} />} />
           <Route path="/categories" element={<AdminCategories categories={categories} setCategories={setCategories} />} />
           <Route path="/inventory" element={<AdminInventory products={products} />} />
+          <Route path="/gallery" element={<AdminGallery />} />
+          <Route path="/stats" element={<AdminStats />} />
+
           {/* Default to Overview */}
           <Route path="*" element={<DashboardOverview products={products} orders={orders} user={user} />} />
         </Routes>
@@ -1927,7 +2040,8 @@ const AdminDashboard = ({ products, categories, orders, fetchOrders, addProduct,
   );
 };
 
-const DashboardOverview = ({ products, orders, user }) => {
+const DashboardOverview = ({ products, orders, totalVisits, user }) => {
+
   const navigate = useNavigate();
   const pendingCount = orders.filter(o => o.status === 'Pending' || o.status === 'Processing').length;
   const lowStockThreshold = 5;
@@ -2007,6 +2121,19 @@ const DashboardOverview = ({ products, orders, user }) => {
             <span className="stat-link">Receipts →</span>
           </div>
         </div>
+
+        <div
+          className="stat-card blue interactive"
+          onClick={() => navigate('/admin/stats')}
+        >
+          <div className="stat-icon"><Globe size={24} /></div>
+          <div className="stat-info">
+            <h3>Website Visits</h3>
+            <span className="stat-number">{totalVisits.toLocaleString()}</span>
+            <span className="stat-link">View Analytics →</span>
+          </div>
+        </div>
+
 
         <div
           className="stat-card orange interactive"
@@ -2817,7 +2944,7 @@ const AdminOrders = ({ orders, addOrder, updateOrder, products }) => {
   );
 };
 
-const AdminReceipts = ({ orders }) => {
+const AdminReceipts = ({ orders, updateOrder }) => {
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -3089,6 +3216,261 @@ const AdminInventory = ({ products }) => {
 };
 
 
+const AdminStats = () => {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    const res = await apiRequest('/visits/stats');
+    if (res.success) setStats(res.data);
+    setLoading(false);
+  };
+
+  if (loading) return <div className="flex justify-center p-20"><div className="loader-premium"></div></div>;
+
+  return (
+    <div className="admin-stats-page dashboard-view fade-in">
+      <header className="admin-header">
+        <div className="page-title">
+          <h1 className="serif">Visitor Analytics</h1>
+          <p>Tracking activity on your website</p>
+        </div>
+      </header>
+
+      <div className="stats-grid">
+        <div className="stat-card blue">
+          <div className="stat-icon"><Globe size={24} /></div>
+          <div className="stat-info">
+            <h3>Total Hits</h3>
+            <p className="stat-number">{stats?.totalVisits || 0}</p>
+          </div>
+        </div>
+        <div className="stat-card green">
+          <div className="stat-icon"><Users size={24} /></div>
+          <div className="stat-info">
+            <h3>Unique Visitors</h3>
+            <p className="stat-number">{stats?.uniqueVisitors || 0}</p>
+          </div>
+        </div>
+        <div className="stat-card orange">
+          <div className="stat-icon"><Zap size={24} /></div>
+          <div className="stat-info">
+            <h3>Last 24h</h3>
+            <p className="stat-number">{stats?.recentVisits || 0}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="admin-card mt-8">
+        <div className="card-header">
+          <h2>Traffic (Last 7 Days)</h2>
+        </div>
+        {stats?.dailyStats?.length > 0 ? (
+          <div className="traffic-chart-simulated">
+            {stats.dailyStats.map(day => (
+              <div key={day._id} className="chart-bar-wrapper">
+                <div className="chart-bar" style={{ height: `${Math.min(100, (day.count / (stats.totalVisits || 1)) * 500)}%` }}>
+                  <span className="bar-tooltip">{day.count} visits</span>
+                </div>
+                <span className="chart-label">{day._id.split('-').slice(1).join('/')}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500 italic p-10 center-text">No data available for the last 7 days.</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const AdminGallery = () => {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({ title: '', description: '', image: '' });
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    fetchGallery();
+  }, []);
+
+  const fetchGallery = async () => {
+    const res = await apiRequest('/gallery');
+    if (res.success) setItems(res.data);
+    setLoading(false);
+  };
+
+  const handleUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    const data = new FormData();
+    data.append('images', file);
+
+    try {
+      const token = localStorage.getItem('vision_auth_token');
+      const res = await fetch(`${API_URL}/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: data
+      });
+      const result = await res.json();
+      if (result.success) {
+        setFormData({ ...formData, image: result.urls[0] });
+      } else {
+        Swal.fire('Error', result.message || 'Upload failed', 'error');
+      }
+    } catch (err) {
+      Swal.fire('Error', 'Upload failed', 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.image) return Swal.fire('Error', 'Please upload an image', 'error');
+
+    const res = await apiRequest('/gallery', 'POST', formData);
+    if (res.success) {
+      setItems([res.data, ...items]);
+      setIsModalOpen(false);
+      setFormData({ title: '', description: '', image: '' });
+      Swal.fire({
+        title: 'Added!',
+        text: 'Gallery item added successfully.',
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false
+      });
+    }
+  };
+
+  const handleDelete = async (id) => {
+    const result = await Swal.fire({
+      title: 'Delete Item?',
+      text: "This cannot be undone.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#008080',
+      cancelButtonColor: '#ef4444',
+      confirmButtonText: 'Yes, delete'
+    });
+
+    if (result.isConfirmed) {
+      const res = await apiRequest(`/gallery/${id}`, 'DELETE');
+      if (res.success) {
+        setItems(items.filter(i => i._id !== id));
+        Swal.fire('Deleted', 'Gallery item removed', 'success');
+      }
+    }
+  };
+
+  return (
+    <div className="admin-gallery-page dashboard-view fade-in">
+      <header className="admin-header">
+        <div className="page-title">
+          <h1 className="serif">Gallery Management</h1>
+          <p>Manage the images that appear in the public gallery</p>
+        </div>
+        <button className="cta-button-premium" onClick={() => setIsModalOpen(true)}>
+          <Plus size={18} /> Add New Image
+        </button>
+      </header>
+
+      {loading ? (
+        <div className="flex justify-center p-20"><div className="loader-premium"></div></div>
+      ) : (
+        <div className="admin-card" style={{ padding: '0' }}>
+          <div className="admin-table-container">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Preview</th>
+                  <th>Title</th>
+                  <th>Added On</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map(item => (
+                  <tr key={item._id}>
+                    <td data-label="Preview"><img src={item.image} className="table-product-img" /></td>
+                    <td data-label="Title">
+                      <div style={{ fontWeight: 700 }}>{item.title || 'No Title'}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#888' }}>{item.description}</div>
+                    </td>
+                    <td data-label="Added On">{new Date(item.createdAt).toLocaleDateString()}</td>
+                    <td data-label="Actions">
+                      <button onClick={() => handleDelete(item._id)} style={{ color: '#ef4444', padding: '0.5rem', border: 'none', background: 'none' }}>
+                        <Trash2 size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {isModalOpen && (
+        <div className="admin-modal-overlay">
+          <div className="admin-modal-card modal-narrow">
+            <div className="modal-header-premium">
+              <h2 className="serif">Add Gallery Item</h2>
+              <X size={24} onClick={() => setIsModalOpen(false)} style={{ cursor: 'pointer' }} />
+            </div>
+            <form onSubmit={handleSubmit} className="admin-modal-form">
+              <div className="modal-content-scroll">
+                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                  <label>Upload Image</label>
+                  <div className="media-upload-area" onClick={() => document.getElementById('gallery-upload').click()}>
+                    {formData.image ? (
+                      <img src={formData.image} style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '12px', objectFit: 'cover' }} />
+                    ) : (
+                      <div className="center-text">
+                        <UploadCloud className="mx-auto" size={40} style={{ color: '#cbd5e1', marginBottom: '0.5rem' }} />
+                        <p style={{ color: '#94a3b8' }}>{uploading ? 'Uploading...' : 'Click to Browse'}</p>
+                      </div>
+                    )}
+                    <input id="gallery-upload" type="file" onChange={handleUpload} style={{ display: 'none' }} />
+                  </div>
+                </div>
+                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                  <label>Title (Optional)</label>
+                  <input value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} placeholder="Ex: Summer Collection Launch" />
+                </div>
+                <div className="form-group">
+                  <label>Description (Optional)</label>
+                  <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Short caption..." rows={3} />
+                </div>
+              </div>
+              <div className="modal-footer-premium">
+                <button type="button" className="btn-cancel-premium" onClick={() => setIsModalOpen(false)}>Cancel</button>
+                <button type="submit" className="cta-button-premium" style={{ flex: 2 }} disabled={uploading}>
+                  {uploading ? 'Processing...' : 'Save to Gallery'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+
 const CheckoutPage = ({ addOrder }) => {
   const { cartItems, cartTotal, clearCart } = useCart();
   const navigate = useNavigate();
@@ -3356,13 +3738,24 @@ const CheckoutPage = ({ addOrder }) => {
   );
 };
 
+const VisitTracker = () => {
+  const location = useLocation();
+  useEffect(() => {
+    apiRequest('/visits', 'POST', { path: location.pathname });
+  }, [location.pathname]);
+  return null;
+};
+
 const App = () => {
+
   // --- ADMIN & AUTH STATE ---
   const [products, setProducts] = useState(allProducts);
   const [categories, setCategories] = useState(['Luxury', 'Elite', 'Men']);
   const [orders, setOrders] = useState([]);
   const [user, setUser] = useState(null);
+  const [totalVisits, setTotalVisits] = useState(0);
   const [loading, setLoading] = useState(true);
+
 
   const fetchOrders = async () => {
     if (!user) return;
@@ -3407,7 +3800,12 @@ const App = () => {
         setUser(verifyRes.data);
         const ordRes = await apiRequest('/orders');
         if (ordRes.success) setOrders(ordRes.data);
+
+        // Fetch visit stats for admin
+        const visitRes = await apiRequest('/visits/stats');
+        if (visitRes.success) setTotalVisits(visitRes.data.totalVisits || 0);
       }
+
 
       setLoading(false);
     };
@@ -3425,12 +3823,20 @@ const App = () => {
     return () => clearInterval(interval);
   }, [user]);
 
-  const handleLogin = (userData) => {
+  const handleLogin = async (userData) => {
     if (userData.token) {
       localStorage.setItem('vision_auth_token', userData.token);
     }
     setUser(userData);
+
+    // Fetch initial admin data
+    const ordRes = await apiRequest('/orders');
+    if (ordRes.success) setOrders(ordRes.data);
+
+    const visitRes = await apiRequest('/visits/stats');
+    if (visitRes.success) setTotalVisits(visitRes.data.totalVisits || 0);
   };
+
 
   const handleLogout = async () => {
     const result = await Swal.fire({
@@ -3575,7 +3981,9 @@ const App = () => {
 
   return (
     <Router>
+      <VisitTracker />
       <CartProvider>
+
         <ModalProvider>
           <div className="app">
             <Navbar user={user} />
@@ -3585,6 +3993,8 @@ const App = () => {
               <Route path="/shop" element={<ShopPage products={products} categories={categories} />} />
               <Route path="/collections" element={<CollectionsPage />} />
               <Route path="/about" element={<AboutPage />} />
+              <Route path="/gallery" element={<GalleryPage />} />
+
               <Route path="/auth" element={<AuthPage onLogin={handleLogin} />} />
               <Route path="/checkout" element={<CheckoutPage addOrder={addOrder} />} />
               <Route
@@ -3595,7 +4005,9 @@ const App = () => {
                       products={products}
                       categories={categories}
                       orders={orders}
+                      totalVisits={totalVisits}
                       fetchOrders={fetchOrders}
+
                       addProduct={addProduct}
                       updateProduct={updateProduct}
                       deleteProduct={deleteProduct}

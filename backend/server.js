@@ -64,6 +64,9 @@ app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/categories', require('./routes/categoryRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/upload', require('./routes/uploadRoutes'));
+app.use('/api/gallery', require('./routes/galleryRoutes'));
+app.use('/api/visits', require('./routes/visitRoutes'));
+
 
 // Server frontend in production
 if (process.env.NODE_ENV === 'production') {
