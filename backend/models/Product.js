@@ -7,6 +7,12 @@ const ProductSchema = new mongoose.Schema({
         required: [true, 'Please provide a product name'],
         trim: true
     },
+    sku: {
+        type: String,
+        unique: true,
+        sparse: true,
+        trim: true
+    },
     category: {
         type: String,
         required: [true, 'Please provide a category'],

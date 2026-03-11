@@ -144,7 +144,7 @@ const ProductDetailModal = () => {
     }, 800);
   };
 
-  const { name, price, discountPrice, discountPercentage, badge, image, comesWithPouch } = selectedProduct;
+  const { name, price, discountPrice, discountPercentage, badge, image, comesWithPouch, sku } = selectedProduct;
   const finalDiscountPrice = discountPrice || (discountPercentage > 0 ? (price * (1 - discountPercentage / 100)).toFixed(2) : null);
 
   return (
@@ -159,7 +159,10 @@ const ProductDetailModal = () => {
           </div>
 
           <div className="modal-info">
-            <h2 className="modal-title serif">{name}</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 className="modal-title serif">{name}</h2>
+              {sku && <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, background: '#f8fafc', padding: '4px 10px', borderRadius: '8px', border: '1px solid #f1f5f9' }}>ID: {sku}</span>}
+            </div>
             <p className="modal-price">
               {finalDiscountPrice ? (
                 <>
@@ -195,7 +198,7 @@ const ProductDetailModal = () => {
 
               <div className="modal-social-grid">
                 <a
-                  href={`https://wa.me/233552739280?text=${encodeURIComponent(`Hi Vision Spa! I'm interested in ordering ${qty} x ${name} (GH₵${discountPrice || price} each). Can you help me?`)}`}
+                  href={`https://wa.me/233552739280?text=${encodeURIComponent(`Hi Vision Spa! I'm interested in ordering ${qty} x ${name} ${sku ? `(ID: ${sku})` : ''} (GH₵${discountPrice || price} each). Can you help me?`)}`}
                   target="_blank" rel="noreferrer"
                   className="modal-social-btn wa"
                 >
@@ -458,7 +461,7 @@ const CollectionCard = ({ title, image, link }) => (
   </div>
 );
 
-const ProductCard = ({ id, _id, name, price, discountPrice, badge, image, status, stock, soldOutAt, comesWithPouch }) => {
+const ProductCard = ({ id, _id, name, price, discountPrice, badge, image, status, stock, soldOutAt, comesWithPouch, sku }) => {
   const resolvedId = _id || id;
   const isSoldOut = status === 'Sold Out' || stock === 0 || !!soldOutAt;
   const { cartItems, addToCart } = useCart();
@@ -477,7 +480,7 @@ const ProductCard = ({ id, _id, name, price, discountPrice, badge, image, status
 
   const handleClick = (e) => {
     if (isMobile || window.innerWidth <= 767) {
-      if (!isSoldOut) openProduct({ id: resolvedId, name, price, discountPrice, badge, image: resolvedImage, comesWithPouch });
+      if (!isSoldOut) openProduct({ id: resolvedId, name, price, discountPrice, badge, image: resolvedImage, comesWithPouch, sku });
     }
   };
 
@@ -509,7 +512,21 @@ const ProductCard = ({ id, _id, name, price, discountPrice, badge, image, status
         <img src={resolvedImage} alt={name} className="product-hover-image" style={{ filter: 'brightness(0.95)' }} />
       </div>
       <div className="product-details">
-        <h4 className="product-name">{name}</h4>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <h4 className="product-name" style={{ flex: 1 }}>{name}</h4>
+          {sku && (
+            <span style={{
+              fontSize: '0.65rem',
+              color: '#94a3b8',
+              background: '#f8fafc',
+              padding: '2px 6px',
+              borderRadius: '6px',
+              fontWeight: 700,
+              marginLeft: '8px',
+              border: '1px solid #f1f5f9'
+            }}>#{sku}</span>
+          )}
+        </div>
         {comesWithPouch && (
           <p style={{ fontSize: '0.7rem', color: '#008080', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '0.25rem' }}>
             <CheckCircle size={12} /> Includes Pouch
@@ -517,7 +534,7 @@ const ProductCard = ({ id, _id, name, price, discountPrice, badge, image, status
         )}
 
         {/* Mobile subtitle using badge or short description */}
-        {isMobile && <p className="product-mobile-subtitle">{badge || "VISION SPA EXCLUSIVE"}</p>}
+        {isMobile && <p className="product-mobile-subtitle">{sku && <span style={{ fontWeight: 800, color: '#008080' }}>ID: {sku} • </span>}{badge || "VISION SPA EXCLUSIVE"}</p>}
 
         {/* Hide complex details on mobile, show only on desktop */}
         {!isMobile && (
@@ -530,7 +547,7 @@ const ProductCard = ({ id, _id, name, price, discountPrice, badge, image, status
               className="add-to-cart-btn"
               disabled={isSoldOut}
               style={{ cursor: isSoldOut ? 'not-allowed' : 'pointer', opacity: isSoldOut ? 0.6 : 1 }}
-              onClick={(e) => { e.stopPropagation(); if (!isSoldOut) addToCart({ id: resolvedId, name, price: currentPrice, badge, image: resolvedImage }); }}>
+              onClick={(e) => { e.stopPropagation(); if (!isSoldOut) addToCart({ id: resolvedId, name, price: currentPrice, badge, image: resolvedImage, sku }); }}>
               <Plus size={16} /> {isSoldOut ? 'Sold Out' : 'Add to Cart'}
             </button>
             <div className="product-social-buy">
@@ -571,7 +588,7 @@ const ProductCard = ({ id, _id, name, price, discountPrice, badge, image, status
                 className="mobile-add-btn"
                 disabled={isSoldOut}
                 style={{ background: isSoldOut ? '#ef4444' : '' }}
-                onClick={(e) => { e.stopPropagation(); if (!isSoldOut) addToCart({ id: resolvedId, name, price: currentPrice, badge, image: resolvedImage }); }}>
+                onClick={(e) => { e.stopPropagation(); if (!isSoldOut) addToCart({ id: resolvedId, name, price: currentPrice, badge, image: resolvedImage, sku }); }}>
                 {isSoldOut ? <PackageX size={18} color="white" /> : <Plus size={18} color="white" strokeWidth={3} />}
               </button>
             </div>
@@ -588,7 +605,7 @@ const CartDrawer = () => {
 
   const buildOrderMessage = () => {
     if (cartItems.length === 0) return '';
-    const lines = cartItems.map(i => `• ${i.name} x${i.qty} — GH₵${(parseFloat(i.price) * i.qty).toFixed(2)}`);
+    const lines = cartItems.map(i => `• ${i.name} ${i.sku ? `(ID: ${i.sku})` : ''} x${i.qty} — GH₵${(parseFloat(i.price) * i.qty).toFixed(2)}`);
     return `Hi Vision Spa! I'd like to place an order:\n\n${lines.join('\n')}\n\n*Total: GH₵${cartTotal.toFixed(2)}*\n\nPlease confirm my order. Thank you! 🙏`;
   };
 
@@ -1313,7 +1330,8 @@ const ShopPage = ({ products = [], categories = [] }) => {
       const matchesCategory = activeCategory === 'all' ||
         product.category?.toLowerCase() === activeCategory.toLowerCase();
 
-      const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            (product.sku && product.sku.toLowerCase().includes(searchQuery.toLowerCase()));
       const matchesPrice = parseFloat(product.price) <= maxPrice;
 
       return matchesCategory && matchesSearch && matchesPrice;
@@ -2255,7 +2273,8 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct, update
     description: '',
     comesWithPouch: false,
     images: [],
-    discountPercentage: 0
+    discountPercentage: 0,
+    sku: ''
   });
 
   const handleEdit = (prod) => {
@@ -2269,7 +2288,8 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct, update
       description: prod.description || '',
       comesWithPouch: !!prod.comesWithPouch,
       images: prod.images || (prod.image ? [prod.image] : []),
-      discountPercentage: prod.discountPercentage || 0
+      discountPercentage: prod.discountPercentage || 0,
+      sku: prod.sku || ''
     });
     setShowModal(true);
   };
@@ -2277,7 +2297,7 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct, update
   const closeModal = () => {
     setShowModal(false);
     setEditingId(null);
-    setNewProd({ name: '', price: '', discountPrice: '', stock: '', category: 'Luxury', description: '', comesWithPouch: false, images: [], discountPercentage: 0 });
+    setNewProd({ name: '', price: '', discountPrice: '', stock: '', category: 'Luxury', description: '', comesWithPouch: false, images: [], discountPercentage: 0, sku: '' });
   };
 
   const handleImageChange = async (e) => {
@@ -2404,9 +2424,15 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct, update
               <div className="modal-content-scroll">
                 <div className="form-grid-2">
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    <div className="form-group-premium">
-                      <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.9rem', fontWeight: 700, color: '#334155' }}>Product Identity</label>
-                      <input type="text" required placeholder="name" value={newProd.name} onChange={e => setNewProd({ ...newProd, name: e.target.value })} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '1rem' }} />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                      <div className="form-group-premium">
+                        <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.9rem', fontWeight: 700, color: '#334155' }}>Product Identity (Name)</label>
+                        <input type="text" required placeholder="name" value={newProd.name} onChange={e => setNewProd({ ...newProd, name: e.target.value })} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '1rem' }} />
+                      </div>
+                      <div className="form-group-premium">
+                        <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.9rem', fontWeight: 700, color: '#334155' }}>Unique SKU / ID</label>
+                        <input type="text" placeholder="PID-001" value={newProd.sku} onChange={e => setNewProd({ ...newProd, sku: e.target.value })} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '1rem' }} />
+                      </div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.25rem' }}>
                       <div>
@@ -2528,6 +2554,7 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct, update
                         />
                         <div style={{ fontWeight: 700 }}>
                           {prod.name}
+                          <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>{prod.sku || 'No ID'}</div>
                           {prod.comesWithPouch && <span style={{ marginLeft: '6px', color: '#008080', fontSize: '0.7rem' }} title="Includes Pouch"><CheckCircle size={12} style={{ display: 'inline', marginBottom: '2px' }} /></span>}
                         </div>
                       </div>
@@ -2732,7 +2759,7 @@ const AdminOrders = ({ orders, addOrder, updateOrder, products }) => {
       customer: newOrder.customer,
       phone: newOrder.phone,
       location: newOrder.location,
-      items: [{ name: newOrder.productName, qty: parseInt(newOrder.qty) }],
+      items: [{ name: newOrder.productName, qty: parseInt(newOrder.qty), sku: prod.sku }],
       total: prod.price * newOrder.qty,
       payment: newOrder.payment,
       status: 'Processing'
@@ -2985,7 +3012,10 @@ const AdminReceipts = ({ orders, updateOrder }) => {
                   <td data-label="#">{indexOfFirstItem + index + 1}</td>
                   <td data-label="Receipt #" style={{ fontWeight: 700 }}>RC-{order.orderId?.split('-')[1] || order.id?.split('-')[1] || (order._id ? order._id.substring(order._id.length - 4) : '0000')}</td>
                   <td data-label="Customer">{order.customer}</td>
-                  <td data-label="Product">{order.items[0]?.name || 'N/A'}</td>
+                  <td data-label="Product">
+                    <div style={{ fontWeight: 600 }}>{order.items[0]?.name || 'N/A'}</div>
+                    {order.items[0]?.sku && <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>ID: {order.items[0].sku}</div>}
+                  </td>
                   <td data-label="Category">{order.items[0]?.category || 'N/A'}</td>
                   <td data-label="Qty">{order.items[0]?.qty || '1'}</td>
                   <td data-label="Total">GH₵{order.total}</td>
@@ -3548,7 +3578,7 @@ const CheckoutPage = ({ addOrder }) => {
       customer: formData.customer,
       phone: formData.phone,
       location: formData.location,
-      items: cartItems.map(i => ({ name: i.name, qty: i.qty, size: i.size || 'M' })),
+      items: cartItems.map(i => ({ name: i.name, qty: i.qty, size: i.size || 'M', sku: i.sku })),
       total: cartTotal,
       paymentScreenshot: screenshotUrl,
       paymentMethod: 'Direct Payment',

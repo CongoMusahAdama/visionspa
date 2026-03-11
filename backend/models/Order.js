@@ -21,6 +21,7 @@ const OrderSchema = new mongoose.Schema({
     items: [
         {
             name: { type: String, required: true },
+            sku: { type: String },
             category: { type: String, default: 'Luxury' },
             qty: { type: Number, required: true, default: 1 },
             size: { type: String, default: 'M' }
