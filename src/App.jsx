@@ -9,6 +9,14 @@ import html2pdf from 'html2pdf.js';
 
 const API_URL = import.meta.env.VITE_API_URL || (window.location.origin.includes('localhost') ? 'http://localhost:5000/api' : 'https://visionspa.onrender.com/api');
 
+const getFullImageUrl = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  if (path.startsWith('blob:')) return '';
+  const origin = window.location.origin;
+  return `${origin}${path.startsWith('/') ? '' : '/'}${path}`;
+};
+
 const apiRequest = async (endpoint, method = 'GET', body = null) => {
   const token = localStorage.getItem('vision_auth_token');
   const headers = {
@@ -197,13 +205,22 @@ const ProductDetailModal = () => {
               </button>
 
               <div className="modal-social-grid">
-                <a
-                  href={`https://wa.me/233552739280?text=${encodeURIComponent(`Hi Vision Spa! I'm interested in ordering ${qty} x ${name} ${sku ? `(ID: ${sku})` : ''} (GH₵${discountPrice || price} each). Can you help me?`)}`}
-                  target="_blank" rel="noreferrer"
-                  className="modal-social-btn wa"
-                >
-                  <MessageCircle size={20} /> WhatsApp
-                </a>
+                {(() => {
+                  const waMsg = `Hi Vision Spa! I'm interested in ordering ${qty} x ${name}${sku ? ` (ID: ${sku})` : ''} (GH₵${discountPrice || price} each).
+
+Image: ${getFullImageUrl(image)}
+
+Can you help me?`;
+                  return (
+                    <a
+                      href={`https://wa.me/233552739280?text=${encodeURIComponent(waMsg)}`}
+                      target="_blank" rel="noreferrer"
+                      className="modal-social-btn wa"
+                    >
+                      <MessageCircle size={20} /> WhatsApp
+                    </a>
+                  );
+                })()}
                 <a
                   href="https://ig.me/m/the_vision_spa"
                   target="_blank" rel="noreferrer"
@@ -555,11 +572,23 @@ const ProductCard = ({ id, _id, name, price, discountPrice, badge, image, status
                 <span className="direct-wa-button" style={{ opacity: 0.5, cursor: 'not-allowed', background: '#e2e8f0', color: '#94a3b8' }}>
                   Currently Unavailable
                 </span>
-              ) : (
-                <a href={`https://wa.me/233552739280`} target="_blank" rel="noreferrer" className="direct-wa-button">
-                  Direct WhatsApp Order
-                </a>
-              )}
+              ) : (() => {
+                const waMsg = `Hi Vision Spa! I'm interested in ordering ${name}${sku ? ` (ID: ${sku})` : ''}.
+
+Image: ${getFullImageUrl(resolvedImage)}
+
+Can you help me?`;
+                return (
+                  <a
+                    href={`https://wa.me/233552739280?text=${encodeURIComponent(waMsg)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="direct-wa-button"
+                  >
+                    Direct WhatsApp Order
+                  </a>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -605,11 +634,16 @@ const CartDrawer = () => {
 
   const buildOrderMessage = () => {
     if (cartItems.length === 0) return '';
-    const lines = cartItems.map(i => `• ${i.name} ${i.sku ? `(ID: ${i.sku})` : ''} x${i.qty} — GH₵${(parseFloat(i.price) * i.qty).toFixed(2)}`);
-    return `Hi Vision Spa! I'd like to place an order:\n\n${lines.join('\n')}\n\n*Total: GH₵${cartTotal.toFixed(2)}*\n\nPlease confirm my order. Thank you! 🙏`;
+    const lines = cartItems.map(i => {
+      const skuPart = i.sku ? ` (ID: ${i.sku})` : '';
+      const imgUrl = getFullImageUrl(i.image);
+      return `\u2022 ${i.name}${skuPart} x${i.qty} \u2014 GHS${(parseFloat(i.price) * i.qty).toFixed(2)}\n  Image: ${imgUrl}`;
+    });
+    const total = cartTotal.toFixed(2);
+    return `Hi Vision Spa! I'd like to place an order:\n\n${lines.join('\n\n')}\n\n*Total: GHS${total}*\n\nPlease confirm my order. Thank you!`;
   };
 
-  const msg = buildOrderMessage().replace(/GH₵/g, 'GHS');
+  const msg = buildOrderMessage();
   const waUrl = `https://wa.me/233552739280?text=${encodeURIComponent(msg)}`;
   const fbUrl = `https://m.me/TheVisionSpa?ref=${encodeURIComponent('ORDER_CART')}`;
   const igUrl = `https://ig.me/m/the_vision_spa`;
@@ -648,6 +682,7 @@ const CartDrawer = () => {
                   <img src={item.image} alt={item.name} className="cart-item-img" />
                   <div className="cart-item-info">
                     <p className="cart-item-name">{item.name}</p>
+                    {item.sku && <p className="cart-item-sku" style={{ fontSize: '0.7rem', color: '#008080', fontWeight: 600, marginTop: '-2px' }}>ID: {item.sku}</p>}
                     <p className="cart-item-price">GH₵{parseFloat(item.price).toFixed(2)}</p>
                     <div className="cart-item-controls">
                       <button className="qty-btn-sm" onClick={() => updateQty(item.id, -1)}><Minus size={12} /></button>
@@ -2244,6 +2279,7 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct, update
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Pagination & Sorting (Newest First)
   const sortedProducts = [...products].sort((a, b) => {
@@ -2251,12 +2287,16 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct, update
     const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
     return dateB - dateA;
   });
+  const filteredProducts = sortedProducts.filter(p =>
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (p.sku && p.sku.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = sortedProducts.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(products.length / itemsPerPage);
+  const currentItems = filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
 
   useEffect(() => {
     if (showModal) document.body.style.overflow = 'hidden';
@@ -2298,6 +2338,12 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct, update
     setShowModal(false);
     setEditingId(null);
     setNewProd({ name: '', price: '', discountPrice: '', stock: '', category: 'Luxury', description: '', comesWithPouch: false, images: [], discountPercentage: 0, sku: '' });
+  };
+
+  const openAddModal = () => {
+    setEditingId(null);
+    setNewProd({ name: '', price: '', discountPrice: '', stock: '', category: 'Luxury', description: '', comesWithPouch: false, images: [], discountPercentage: 0, sku: '' });
+    setShowModal(true);
   };
 
   const handleImageChange = async (e) => {
@@ -2396,12 +2442,23 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct, update
     <div className="dashboard-view fade-in">
       <header className="admin-header">
         <div className="page-title">
-          <h1 className="serif">Product Library</h1>
-          <p>Displaying all {products.length} products</p>
+          <h1 className="serif">Product Catalog</h1>
+          <p>Edit, restock or remove items — {products.length} Items</p>
         </div>
-        <div className="header-actions">
-          <button onClick={() => { setEditingId(null); setShowModal(true); }} className="cta-button-premium" style={{ padding: '0.8rem 1.5rem', fontSize: '0.75rem', borderRadius: '12px' }}>
-            <Plus size={16} /> Add Entry
+        <div className="flex gap-4 items-center">
+          <div className="admin-search-bar" style={{ position: 'relative' }}>
+            <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+            <input
+              type="text"
+              placeholder="Search name or ID..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              className="admin-search-input"
+              style={{ paddingLeft: '40px', borderRadius: '12px', border: '1px solid #e2e8f0', height: '44px', width: '250px' }}
+            />
+          </div>
+          <button className="cta-button-premium" onClick={openAddModal}>
+            <Plus size={18} /> New Product
           </button>
         </div>
       </header>
@@ -2586,7 +2643,7 @@ const AdminProducts = ({ products, categories, deleteProduct, addProduct, update
         {/* Pagination Controls */}
         {totalPages > 1 && (
           <div className="pagination-wrapper" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9' }}>
-            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, products.length)} of {products.length} entries</span>
+            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredProducts.length)} of {filteredProducts.length} entries</span>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
                 disabled={currentPage === 1}
@@ -2651,8 +2708,8 @@ const ReceiptModal = ({ order, onClose }) => {
       const waUrl = `https://wa.me/${order.phone ? order.phone.replace(/[^0-9]/g, '') : ''}?text=${encodeURIComponent(waText)}`;
       window.open(waUrl, '_blank');
     } catch (err) {
-      console.error(err);
-      Swal.fire('Error', 'Could not generate receipt PDF.', 'error');
+      console.error('Error generating PDF or opening WhatsApp:', err);
+      Swal.fire('Error', 'Could not generate receipt PDF or open WhatsApp. Please try again.', 'error');
     } finally {
       setIsGenerating(false);
     }
@@ -2743,6 +2800,7 @@ const ReceiptModal = ({ order, onClose }) => {
 const AdminOrders = ({ orders, addOrder, updateOrder, products }) => {
   const [showModal, setShowModal] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (showModal) document.body.style.overflow = 'hidden';
@@ -2771,39 +2829,39 @@ const AdminOrders = ({ orders, addOrder, updateOrder, products }) => {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  const filteredOrders = orders.filter(order =>
+    order.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    order.orderId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    order.items.some(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.sku?.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = orders.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(orders.length / itemsPerPage);
+  const currentItems = filteredOrders.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
 
   return (
     <div className="dashboard-view fade-in">
       <header className="admin-header">
         <div className="page-title">
-          <h1 className="serif">Order Book</h1>
-          <p>Manual WhatsApp Sales Entry — {orders.length} Records</p>
+          <h1 className="serif">Sales Orders</h1>
+          <p>Track payments and fulfillments — {orders.length} Total</p>
         </div>
-        <div className="header-actions" style={{ display: 'flex', gap: '1rem' }}>
-          <button
-            onClick={() => {
-              fetchOrders();
-              Swal.fire({
-                title: 'Syncing...',
-                text: 'Fetching latest orders from server.',
-                icon: 'info',
-                timer: 1000,
-                showConfirmButton: false,
-                toast: true,
-                position: 'top-end'
-              });
-            }}
-            className="cta-button-premium"
-            style={{ padding: '0.8rem 1.2rem', fontSize: '0.75rem', borderRadius: '12px', background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0' }}
-          >
-            <Sparkles size={16} /> Check for New Orders
-          </button>
-          <button onClick={() => setShowModal(true)} className="cta-button-premium" style={{ padding: '0.8rem 1.5rem', fontSize: '0.75rem', borderRadius: '12px' }}>
-            <Plus size={16} /> Record Sale
+        <div className="flex gap-4 items-center">
+          <div className="admin-search-bar" style={{ position: 'relative' }}>
+            <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+            <input
+              type="text"
+              placeholder="Search customer, ID or SKU..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              className="admin-search-input"
+              style={{ paddingLeft: '40px', borderRadius: '12px', border: '1px solid #e2e8f0', height: '44px', width: '280px' }}
+            />
+          </div>
+          <button className="cta-button-premium" onClick={() => setShowModal(true)}>
+            <Plus size={18} /> Record Manual Sale
           </button>
         </div>
       </header>
@@ -2880,8 +2938,7 @@ const AdminOrders = ({ orders, addOrder, updateOrder, products }) => {
                 <th style={{ width: '50px' }}>#</th>
                 <th>Order ID</th>
                 <th>Customer</th>
-                <th>Proof</th>
-                <th>Location</th>
+                <th>Items Ordered</th>
                 <th>Price</th>
                 <th>Payment</th>
                 <th>Status</th>
@@ -2897,29 +2954,20 @@ const AdminOrders = ({ orders, addOrder, updateOrder, products }) => {
                     <div style={{ fontWeight: 600 }}>{order.customer}</div>
                     <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{order.phone}</div>
                   </td>
-                  <td data-label="Proof">
-                    {order.paymentScreenshot ? (
-                      <button
-                        className="btn-view-proof"
-                        onClick={() => {
-                          Swal.fire({
-                            title: 'Payment Screenshot',
-                            imageUrl: order.paymentScreenshot,
-                            imageAlt: 'Payment Proof',
-                            confirmButtonColor: '#008080',
-                            confirmButtonText: 'Great, Close'
-                          });
-                        }}
-                        style={{ background: '#f0fdf4', color: '#16a34a', border: '1px solid #dcfce7', padding: '0.4rem 0.8rem', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer' }}
-                      >
-                        <Eye size={14} style={{ display: 'inline', marginRight: '4px' }} /> View
-                      </button>
-                    ) : (
-                      <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>None</span>
-                    )}
+                  <td data-label="Items Ordered">
+                    <div style={{ fontSize: '0.85rem' }}>
+                      {order.items?.map((item, idx) => (
+                        <div key={idx} style={{ marginBottom: '2px' }}>
+                          <span style={{ fontWeight: 700 }}>{item.qty}x</span> {item.name}
+                          {item.sku && <div style={{ fontSize: '0.7rem', color: '#008080', fontWeight: 600 }}>ID: {item.sku}</div>}
+                        </div>
+                      ))}
+                    </div>
                   </td>
-                  <td data-label="Location" style={{ fontSize: '0.85rem' }}>{order.location || 'N/A'}</td>
-                  <td data-label="Price" style={{ fontWeight: 700 }}>GH₵{order.total}</td>
+                  <td data-label="Price">
+                    <div style={{ fontWeight: 800 }}>GH₵{order.total?.toFixed(2)}</div>
+                    <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{order.items?.length || 0} unit(s)</div>
+                  </td>
                   <td data-label="Payment"><span className={`badge ${order.payment === 'Paid' ? 'badge-paid' : 'badge-unpaid'}`}>{order.payment}</span></td>
                   <td data-label="Status"><span className={`badge badge-${order.status.toLowerCase()}`}>{order.status}</span></td>
                   <td data-label="Actions" style={{ textAlign: 'center' }}>
@@ -2955,7 +3003,7 @@ const AdminOrders = ({ orders, addOrder, updateOrder, products }) => {
         {/* Pagination Controls */}
         {totalPages > 1 && (
           <div className="pagination-wrapper" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9' }}>
-            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, orders.length)} of {orders.length} lines</span>
+            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredOrders.length)} of {filteredOrders.length} lines</span>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="pagination-btn">Prev</button>
               <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="pagination-btn">Next</button>
@@ -2973,19 +3021,38 @@ const AdminOrders = ({ orders, addOrder, updateOrder, products }) => {
 
 const AdminReceipts = ({ orders, updateOrder }) => {
   const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = orders.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(orders.length / itemsPerPage);
+  
+  const filtered = orders.filter(o => 
+    o.customer?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    o.orderId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    o.items?.some(i => (i.name && i.name.toLowerCase().includes(searchQuery.toLowerCase())) || (i.sku && i.sku.toLowerCase().includes(searchQuery.toLowerCase())))
+  );
+
+  const currentItems = filtered.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
 
   return (
     <div className="dashboard-view fade-in">
       <header className="admin-header">
         <div className="page-title">
           <h1 className="serif">Generate Receipt</h1>
-          <p>Pick an order and tap to generate its receipt. {orders.length} order{orders.length !== 1 ? 's' : ''} available.</p>
+          <p>Pick an order and tap to generate its receipt. {orders.length} orders total.</p>
+        </div>
+        <div className="admin-search-bar" style={{ position: 'relative' }}>
+          <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+          <input 
+            type="text" 
+            placeholder="Search customer, ID or SKU..." 
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+            className="admin-search-input"
+            style={{ paddingLeft: '40px', borderRadius: '12px', border: '1px solid #e2e8f0', height: '44px', width: '280px' }}
+          />
         </div>
       </header>
 
@@ -3184,13 +3251,18 @@ const AdminCategories = ({ categories, setCategories }) => {
 };
 
 const AdminInventory = ({ products }) => {
+  const [searchQuery, setSearchQuery] = useState('');
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const filtered = products.filter(p =>
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (p.sku && p.sku.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = products.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(products.length / itemsPerPage);
+  const currentItems = filtered.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
 
   return (
     <div className="dashboard-view fade-in">
@@ -3198,6 +3270,19 @@ const AdminInventory = ({ products }) => {
         <div className="page-title">
           <h1 className="serif">Inventory Health</h1>
           <p>Real-time stock tracking — {products.length} Items</p>
+        </div>
+        <div className="flex gap-4 items-center">
+          <div className="admin-search-bar" style={{ position: 'relative' }}>
+            <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+            <input
+              type="text"
+              placeholder="Search product name or ID..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              className="admin-search-input"
+              style={{ paddingLeft: '40px', borderRadius: '12px', border: '1px solid #e2e8f0', height: '44px', width: '250px' }}
+            />
+          </div>
         </div>
       </header>
 
@@ -3215,7 +3300,10 @@ const AdminInventory = ({ products }) => {
             <tbody>
               {currentItems.map(p => (
                 <tr key={p._id || p.id}>
-                  <td data-label="Product"><div style={{ fontWeight: 700 }}>{p.name}</div></td>
+                  <td data-label="Product">
+                    <div style={{ fontWeight: 700 }}>{p.name}</div>
+                    {p.sku && <div style={{ fontSize: '0.7rem', color: '#008080', fontWeight: 600 }}>ID: {p.sku}</div>}
+                  </td>
                   <td data-label="Available Stock">{p.stock} units</td>
                   <td data-label="Safety Level">
                     <div style={{ width: '100%', maxWidth: '150px', height: '10px', background: '#f1f5f9', borderRadius: '5px', overflow: 'hidden', marginLeft: 'auto' }}>
@@ -3468,7 +3556,7 @@ const AdminGallery = () => {
                     {formData.image ? (
                       <img src={formData.image} style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '12px', objectFit: 'cover' }} />
                     ) : (
-                      <div className="center-text">
+                      <div className="upload-empty-content">
                         <UploadCloud className="mx-auto" size={40} style={{ color: '#cbd5e1', marginBottom: '0.5rem' }} />
                         <p style={{ color: '#94a3b8' }}>{uploading ? 'Uploading...' : 'Click to Browse'}</p>
                       </div>
@@ -3712,6 +3800,7 @@ const CheckoutPage = ({ addOrder }) => {
                     <img src={item.image} className="summary-item-img" />
                     <div className="summary-item-info">
                       <p className="summary-item-name">{item.name}</p>
+                      {item.sku && <p className="summary-item-sku" style={{ fontSize: '0.65rem', color: '#008080', fontWeight: 700 }}>ID: {item.sku}</p>}
                       <p className="summary-item-qty">Qty: {item.qty}</p>
                     </div>
                   </div>

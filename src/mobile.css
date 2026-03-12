@@ -1715,9 +1715,7 @@
         letter-spacing: 0.05em !important;
         margin-bottom: auto !important;
         font-weight: 500 !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
+        white-space: normal !important;
         max-width: 100% !important;
     }
 
