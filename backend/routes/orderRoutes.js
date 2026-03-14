@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getOrders, createOrder, updateOrder, deleteOrder } = require('../controllers/orderController');
+const { getOrders, createOrder, updateOrder, deleteOrder, trackOrder } = require('../controllers/orderController');
 const { protect } = require('../middleware/authMiddleware');
 
 router.route('/')
@@ -10,5 +10,7 @@ router.route('/')
 router.route('/:id')
     .put(protect, updateOrder)
     .delete(protect, deleteOrder);
+
+router.get('/track/:orderId', trackOrder);
 
 module.exports = router;

@@ -361,6 +361,28 @@
   }
 }
 
+@keyframes bump {
+  0% {
+    transform: scale(1);
+  }
+  10% {
+    transform: scale(0.9);
+  }
+  30% {
+    transform: scale(1.3);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.bump {
+  animation: bump 0.4s ease-out;
+}
+
 /* Animation Classes */
 .fade-in {
   animation: fadeInUp 1s forwards cubic-bezier(0.165, 0.84, 0.44, 1);

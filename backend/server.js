@@ -5,8 +5,8 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const Admin = require('./models/Admin');
 const helmet = require('helmet');
-// express-mongo-sanitize removed — incompatible with Express v5 (req.query is read-only)
-// xss-clean also removed — deprecated and incompatible with Express v5
+const mongoSanitize = require('express-mongo-sanitize');
+const xss = require('xss-clean');
 const cookieParser = require('cookie-parser');
 
 // Load environment variables
@@ -23,25 +23,14 @@ app.use((req, res, next) => {
     next();
 });
 
-const allowedOrigins = [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'http://127.0.0.1:5173',
-    'https://visionspa.netlify.app',
-    'https://www.visionspa.netlify.app',
-    'https://visionspa.onrender.com',
-    'https://thevisionspa.store',
-    'https://www.thevisionspa.store',
-    'https://visionspa.store',
-    'https://www.visionspa.store'
-];
+const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
 
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps or curl)
-        if (!origin) return callback(null, true);
+        // Allow requests with no origin (like mobile apps or curl) or in development
+        if (!origin || process.env.NODE_ENV !== 'production') return callback(null, true);
 
-        if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+        if (allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
             console.warn(`Blocked by CORS: ${origin}`);
@@ -53,9 +42,11 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With']
 }));
 app.use(helmet({
-    crossOriginResourcePolicy: false, // Helps when assets are served from different domains
+    crossOriginResourcePolicy: false,
 }));
 app.use(express.json({ limit: '10kb' }));
+// app.use(mongoSanitize());
+// app.use(xss());
 app.use(cookieParser());
 
 // Routes
