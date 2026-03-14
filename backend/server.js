@@ -23,7 +23,17 @@ app.use((req, res, next) => {
     next();
 });
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(o => o !== '') 
+    : [
+        'https://visionspa.store', 
+        'https://www.visionspa.store',
+        'https://thevisionspa.store',
+        'https://www.thevisionspa.store',
+        'https://visionspa.netlify.app'
+      ];
+
+console.log('CORS Configured with Origins:', allowedOrigins);
 
 app.use(cors({
     origin: (origin, callback) => {
@@ -34,7 +44,8 @@ app.use(cors({
             callback(null, true);
         } else {
             console.warn(`Blocked by CORS: ${origin}`);
-            callback(new Error('Not allowed by CORS'));
+            // Return false instead of an Error to handle it gracefully in the CORS middleware
+            callback(null, false);
         }
     },
     credentials: true,
