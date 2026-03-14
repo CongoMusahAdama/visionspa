@@ -23,34 +23,49 @@ app.use((req, res, next) => {
     next();
 });
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
-    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(o => o !== '') 
-    : [
-        'https://visionspa.store', 
-        'https://www.visionspa.store',
-        'https://thevisionspa.store',
-        'https://www.thevisionspa.store',
-        'https://visionspa.netlify.app'
-      ];
+const defaultOrigins = [
+    'https://visionspa.store', 
+    'https://www.visionspa.store',
+    'https://thevisionspa.store',
+    'https://www.thevisionspa.store',
+    'https://visionspa.netlify.app',
+    'https://www.visionspa.netlify.app',
+    'https://visionspa.onrender.com'
+];
 
-console.log('CORS Configured with Origins:', allowedOrigins);
+const envOrigins = process.env.ALLOWED_ORIGINS 
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(o => o !== '') 
+    : [];
+
+// Merge and remove duplicates
+const allowedOrigins = [...new Set([...defaultOrigins, ...envOrigins])];
+
+console.log('--- CORS CONFIGURATION ---');
+console.log('Production Environment:', process.env.NODE_ENV === 'production');
+console.log('Allowed Origins:', allowedOrigins);
+console.log('--------------------------');
 
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps or curl) or in development
-        if (!origin || process.env.NODE_ENV !== 'production') return callback(null, true);
+        // Allow requests with no origin (like mobile apps, curl, or same-origin)
+        if (!origin) return callback(null, true);
+        
+        // In non-production, allow all
+        if (process.env.NODE_ENV !== 'production') return callback(null, true);
 
+        // Check against our allowed list
         if (allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
-            console.warn(`Blocked by CORS: ${origin}`);
-            // Return false instead of an Error to handle it gracefully in the CORS middleware
+            console.warn(`[CORS REJECTED] Origin: ${origin}`);
+            // Return false to let the browser handle the error as a CORS policy violation
             callback(null, false);
         }
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With']
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With', 'Accept'],
+    exposedHeaders: ['Set-Cookie']
 }));
 app.use(helmet({
     crossOriginResourcePolicy: false,
